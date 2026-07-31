@@ -79,16 +79,14 @@ ssh -i your-key.pem ubuntu@<EC2-public-ip>
 
 **3. Deploy the app**
 
-This repo is **private**, so `git clone` needs credentials. Generate a
-[fine-grained personal access token](https://github.com/settings/tokens)
-with read-only access to this repo, then on the instance:
+The repo is public, so no credentials are needed to clone it:
 
 ```bash
 sudo apt-get update -y && sudo apt-get install -y git
-git clone https://<your-token>@github.com/ateekshaykh/websocket-demo-chat.git /opt/websocket-demo-chat
+git clone https://github.com/ateekshaykh/websocket-demo-chat.git /opt/websocket-demo-chat
 cd /opt/websocket-demo-chat
 chmod +x deploy/ec2-setup.sh
-REPO_URL="https://<your-token>@github.com/ateekshaykh/websocket-demo-chat.git" ./deploy/ec2-setup.sh
+./deploy/ec2-setup.sh
 ```
 
 The script installs Python, re-clones/pulls the repo into `/opt/websocket-demo-chat`,
@@ -96,6 +94,11 @@ and runs the server as a systemd service that restarts automatically.
 
 Check it's running: `sudo systemctl status websocket-chat`, logs via
 `sudo journalctl -u websocket-chat -f`.
+
+If the repo is ever made private again, clone with a
+[personal access token](https://github.com/settings/tokens) embedded in the
+URL instead: `https://<your-token>@github.com/ateekshaykh/websocket-demo-chat.git`,
+and pass the same URL via `REPO_URL=... ./deploy/ec2-setup.sh`.
 
 **4. Connect**
 
