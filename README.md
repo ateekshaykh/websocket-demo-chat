@@ -79,18 +79,20 @@ ssh -i your-key.pem ubuntu@<EC2-public-ip>
 
 **3. Deploy the app**
 
-On the instance, download and run the setup script (it installs Python,
-clones the repo, and runs the server as a systemd service that restarts
-automatically):
+This repo is **private**, so `git clone` needs credentials. Generate a
+[fine-grained personal access token](https://github.com/settings/tokens)
+with read-only access to this repo, then on the instance:
 
 ```bash
-curl -O https://raw.githubusercontent.com/ateekshaykh/websocket-demo-chat/main/deploy/ec2-setup.sh
-chmod +x ec2-setup.sh
-REPO_URL="https://github.com/ateekshaykh/websocket-demo-chat.git" ./ec2-setup.sh
+sudo apt-get update -y && sudo apt-get install -y git
+git clone https://<your-token>@github.com/ateekshaykh/websocket-demo-chat.git /opt/websocket-demo-chat
+cd /opt/websocket-demo-chat
+chmod +x deploy/ec2-setup.sh
+REPO_URL="https://<your-token>@github.com/ateekshaykh/websocket-demo-chat.git" ./deploy/ec2-setup.sh
 ```
 
-If the repo is private, embed a [personal access token](https://github.com/settings/tokens)
-in the URL instead: `REPO_URL="https://<token>@github.com/ateekshaykh/websocket-demo-chat.git"`.
+The script installs Python, re-clones/pulls the repo into `/opt/websocket-demo-chat`,
+and runs the server as a systemd service that restarts automatically.
 
 Check it's running: `sudo systemctl status websocket-chat`, logs via
 `sudo journalctl -u websocket-chat -f`.
