@@ -23,22 +23,22 @@ class RoomManager:
     """Tracks active WebSocket connections grouped by room name."""
 
     def __init__(self) -> None:
-        self.rooms: Dict[str, Set[WebSocket]] = {}
+        self.rooms: Dict[str, Dict[WebSocket, str]] = {}
 
-    async def connect(self, room: str, websocket: WebSocket) -> None:
+    async def connect(self, room: str, websocket: WebSocket, username: str) -> None:
         await websocket.accept()
-        self.rooms.setdefault(room, set()).add(websocket)
+        self.rooms.setdefault(room, {})[websocket] = username
 
     def disconnect(self, room: str, websocket: WebSocket) -> None:
         connections = self.rooms.get(room)
         if not connections:
             return
-        connections.discard(websocket)
+        connections.pop(websocket, None)
         if not connections:
             self.rooms.pop(room, None)
 
     async def broadcast(self, room: str, message: dict, *, exclude: Optional[WebSocket] = None) -> None:
-        connections = self.rooms.get(room, set())
+        connections = self.rooms.get(room, {})
         payload = json.dumps(message)
         dead: Set[WebSocket] = set()
         for connection in connections:
@@ -49,10 +49,17 @@ class RoomManager:
             except Exception:
                 dead.add(connection)
         for connection in dead:
-            connections.discard(connection)
+            connections.pop(connection, None)
 
     def room_size(self, room: str) -> int:
-        return len(self.rooms.get(room, set()))
+        return len(self.rooms.get(room, {}))
+
+    def usernames(self, room: str, *, exclude: Optional[WebSocket] = None) -> list:
+        return [
+            name
+            for ws, name in self.rooms.get(room, {}).items()
+            if ws is not exclude
+        ]
 
 
 manager = RoomManager()
@@ -69,7 +76,28 @@ async def health() -> dict:
 
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> None:
-    await manager.connect(room, websocket)
+    existing_users = manager.usernames(room)
+    await manager.connect(room, websocket, username)
+
+    # Tell the newly-joined client who's already in the room, so they see
+    # the same picture existing members get via the "joined" broadcast.
+    await websocket.send_text(
+        json.dumps(
+            {
+                "type": "roster",
+                "message": (
+                    f"Already in the room: {', '.join(existing_users)}"
+                    if existing_users
+                    else "No one else is here yet"
+                ),
+                "room": room,
+                "users": existing_users,
+                "users_online": manager.room_size(room),
+                "timestamp": _now(),
+            }
+        )
+    )
+
     await manager.broadcast(
         room,
         {

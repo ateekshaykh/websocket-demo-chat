@@ -452,7 +452,10 @@
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.type === "system") {
+      if (data.type === "roster") {
+        logEvent("recv", `roster: ${data.message}`);
+        appendMessage("system", null, `${data.message} · ${data.users_online} online`);
+      } else if (data.type === "system") {
         logEvent("recv", `system: ${data.message}`);
         appendMessage("system", null, `${data.message} · ${data.users_online} online`);
       } else {

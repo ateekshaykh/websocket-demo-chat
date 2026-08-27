@@ -19,7 +19,7 @@ import websockets
 async def receive_loop(ws) -> None:
     async for raw in ws:
         data = json.loads(raw)
-        if data.get("type") == "system":
+        if data.get("type") in ("system", "roster"):
             print(f"\r* {data['message']} ({data.get('users_online', '?')} online)")
         else:
             print(f"\r[{data.get('username')}] {data.get('message')}")
