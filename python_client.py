@@ -21,6 +21,8 @@ async def receive_loop(ws) -> None:
         data = json.loads(raw)
         if data.get("type") in ("system", "roster"):
             print(f"\r* {data['message']} ({data.get('users_online', '?')} online)")
+        elif data.get("type") == "typing":
+            print(f"\r* {data.get('username')} is typing...")
         else:
             print(f"\r[{data.get('username')}] {data.get('message')}")
         print("> ", end="", flush=True)
