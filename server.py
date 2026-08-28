@@ -116,9 +116,25 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
             # Accept either plain text or a JSON payload like {"message": "..."}
             try:
                 data = json.loads(raw)
-                text = data.get("message", "")
-            except (json.JSONDecodeError, AttributeError):
-                text = raw
+            except json.JSONDecodeError:
+                data = None
+
+            if isinstance(data, dict) and data.get("type") == "typing":
+                # Ephemeral "user is typing" signal — relayed to everyone
+                # else in the room, never stored or echoed back to the sender.
+                await manager.broadcast(
+                    room,
+                    {
+                        "type": "typing",
+                        "username": username,
+                        "room": room,
+                        "timestamp": _now(),
+                    },
+                    exclude=websocket,
+                )
+                continue
+
+            text = data.get("message", "") if isinstance(data, dict) else raw
 
             if not text:
                 continue
