@@ -51,15 +51,19 @@ class RoomManager:
         for connection in dead:
             connections.pop(connection, None)
 
-    def room_size(self, room: str) -> int:
-        return len(self.rooms.get(room, {}))
+    # Presence is tracked per *user*, not per connection: a page refresh (or a
+    # second tab with the same name) briefly means two sockets for one person,
+    # and that must not show up as an extra user or a join/leave pair.
 
-    def usernames(self, room: str, *, exclude: Optional[WebSocket] = None) -> list:
-        return [
-            name
-            for ws, name in self.rooms.get(room, {}).items()
-            if ws is not exclude
-        ]
+    def room_size(self, room: str) -> int:
+        return len(set(self.rooms.get(room, {}).values()))
+
+    def usernames(self, room: str, *, exclude_user: Optional[str] = None) -> list:
+        names = dict.fromkeys(self.rooms.get(room, {}).values())  # unique, ordered
+        return [name for name in names if name != exclude_user]
+
+    def has_user(self, room: str, username: str) -> bool:
+        return username in self.rooms.get(room, {}).values()
 
 
 manager = RoomManager()
@@ -76,7 +80,10 @@ async def health() -> dict:
 
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> None:
-    existing_users = manager.usernames(room)
+    # Snapshot before connecting: is this a fresh arrival, or the same user
+    # reconnecting (e.g. after a refresh) while their old socket lingers?
+    is_new_user = not manager.has_user(room, username)
+    existing_users = manager.usernames(room, exclude_user=username)
     await manager.connect(room, websocket, username)
 
     # Tell the newly-joined client who's already in the room, so they see
@@ -98,16 +105,17 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
         )
     )
 
-    await manager.broadcast(
-        room,
-        {
-            "type": "system",
-            "message": f"{username} joined the room",
-            "room": room,
-            "users_online": manager.room_size(room),
-            "timestamp": _now(),
-        },
-    )
+    if is_new_user:
+        await manager.broadcast(
+            room,
+            {
+                "type": "system",
+                "message": f"{username} joined the room",
+                "room": room,
+                "users_online": manager.room_size(room),
+                "timestamp": _now(),
+            },
+        )
 
     try:
         while True:
@@ -153,16 +161,18 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
         pass
     finally:
         manager.disconnect(room, websocket)
-        await manager.broadcast(
-            room,
-            {
-                "type": "system",
-                "message": f"{username} left the room",
-                "room": room,
-                "users_online": manager.room_size(room),
-                "timestamp": _now(),
-            },
-        )
+        # Only announce a departure once their last connection is gone.
+        if not manager.has_user(room, username):
+            await manager.broadcast(
+                room,
+                {
+                    "type": "system",
+                    "message": f"{username} left the room",
+                    "room": room,
+                    "users_online": manager.room_size(room),
+                    "timestamp": _now(),
+                },
+            )
 
 
 # Serve the HTML/JS client at the site root and its static assets under /static.
