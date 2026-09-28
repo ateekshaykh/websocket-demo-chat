@@ -786,12 +786,39 @@
     ws.send(JSON.stringify({ type: "typing" }));
   });
 
+  // ---------- session persistence ----------
+  // The socket itself dies with the page, so on refresh we remember who was
+  // in which room and transparently rejoin. sessionStorage is per-tab, so
+  // two tabs can still be two different users, and it's cleared on Leave.
+  const SESSION_KEY = "chat-session";
+
+  function saveSession(room, user) {
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ room, user })); } catch (_) {}
+  }
+
+  function clearSession() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (_) {}
+  }
+
+  function loadSession() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+      return saved && saved.room && saved.user ? saved : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   joinForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    username = document.getElementById("username").value.trim();
+    const user = document.getElementById("username").value.trim();
     const room = document.getElementById("room").value.trim();
-    if (!username || !room) return;
+    if (!user || !room) return;
+    connect(room, user);
+  });
 
+  function connect(room, user) {
+    username = user;
     const url = wsUrl(room, username);
     logEvent("info", `new WebSocket("${url}")`);
     logEvent("info", "readyState 0 CONNECTING — sending HTTP GET with Upgrade: websocket");
@@ -802,6 +829,7 @@
     ws.onopen = () => {
       logEvent("open", "readyState 1 OPEN — server replied 101 Switching Protocols, handshake complete");
       setStatus("open");
+      saveSession(room, username);
       joinScreen.style.display = "none";
       chatScreen.style.display = "flex";
       leaveBtn.classList.add("show");
@@ -847,11 +875,12 @@
       logEvent("error", "WebSocket error event fired");
       setStatus("closed");
     };
-  });
+  }
 
   leaveBtn.addEventListener("click", () => {
     if (!ws || leaving) return;
     leaving = true;
+    clearSession();
     logEvent("info", "Leave clicked — ws.close(1000, \"left the room\")");
     ws.close(1000, "left the room");
   });
@@ -866,6 +895,15 @@
     messageInput.value = "";
     lastTypingSentAt = 0;
   });
+
+  // Rejoin automatically after a refresh; otherwise just prefill the form.
+  const savedSession = loadSession();
+  if (savedSession) {
+    document.getElementById("username").value = savedSession.user;
+    document.getElementById("room").value = savedSession.room;
+    logEvent("info", `restoring session: ${savedSession.user} in #${savedSession.room}`);
+    connect(savedSession.room, savedSession.user);
+  }
 </script>
 </body>
 </html>
