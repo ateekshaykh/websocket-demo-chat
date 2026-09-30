@@ -78,6 +78,15 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/api/rooms/{room}/users")
+async def room_users(room: str) -> dict:
+    """Lightweight, read-only roster lookup used for the join screen's
+    best-effort "name already taken" warning. Not authoritative — it's a
+    soft hint, not an enforced uniqueness lock, so it can't break the
+    same-user-reconnecting case the WebSocket endpoint already handles."""
+    return {"room": room, "users": manager.usernames(room), "count": manager.room_size(room)}
+
+
 @app.websocket("/ws/{room}/{username}")
 async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> None:
     # Snapshot before connecting: is this a fresh arrival, or the same user
@@ -112,6 +121,7 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
                 "type": "system",
                 "message": f"{username} joined the room",
                 "room": room,
+                "users": manager.usernames(room),
                 "users_online": manager.room_size(room),
                 "timestamp": _now(),
             },
@@ -169,6 +179,7 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
                     "type": "system",
                     "message": f"{username} left the room",
                     "room": room,
+                    "users": manager.usernames(room),
                     "users_online": manager.room_size(room),
                     "timestamp": _now(),
                 },
