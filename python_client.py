@@ -23,6 +23,9 @@ async def receive_loop(ws) -> None:
             print(f"\r* {data['message']} ({data.get('users_online', '?')} online)")
         elif data.get("type") == "typing":
             print(f"\r* {data.get('username')} is typing...")
+        elif data.get("type") == "reaction_update":
+            reactions = " ".join(f"{e}{len(u)}" for e, u in data.get("reactions", {}).items())
+            print(f"\r* reaction on a message: {reactions or '(none)'}")
         else:
             print(f"\r[{data.get('username')}] {data.get('message')}")
         print("> ", end="", flush=True)

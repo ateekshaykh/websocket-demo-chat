@@ -9,6 +9,7 @@ the Python client — messages are broadcast to every connection currently
 in that room.
 """
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, Optional, Set
 
@@ -68,9 +69,19 @@ class RoomManager:
 
 manager = RoomManager()
 
+# In-memory reaction store: message_id -> {emoji: {usernames}}. Like the rest
+# of this app's state, it's ephemeral — no persistence, wiped on restart —
+# and kept globally rather than per-room since message ids are already
+# unique and it saves threading room lookups through every reaction call.
+reactions: Dict[str, Dict[str, Set[str]]] = {}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _reactions_payload(message_id: str) -> dict:
+    return {emoji: sorted(users) for emoji, users in reactions.get(message_id, {}).items() if users}
 
 
 @app.get("/health")
@@ -152,6 +163,28 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
                 )
                 continue
 
+            if isinstance(data, dict) and data.get("type") == "reaction":
+                # Toggle: reacting again with the same emoji removes it.
+                message_id = data.get("message_id")
+                emoji = data.get("emoji")
+                if isinstance(message_id, str) and isinstance(emoji, str) and emoji:
+                    reactors = reactions.setdefault(message_id, {}).setdefault(emoji, set())
+                    if username in reactors:
+                        reactors.discard(username)
+                    else:
+                        reactors.add(username)
+                    await manager.broadcast(
+                        room,
+                        {
+                            "type": "reaction_update",
+                            "message_id": message_id,
+                            "reactions": _reactions_payload(message_id),
+                            "room": room,
+                            "timestamp": _now(),
+                        },
+                    )
+                continue
+
             text = data.get("message", "") if isinstance(data, dict) else raw
 
             if not text:
@@ -161,6 +194,7 @@ async def websocket_endpoint(websocket: WebSocket, room: str, username: str) -> 
                 room,
                 {
                     "type": "message",
+                    "id": uuid.uuid4().hex[:12],
                     "username": username,
                     "message": text,
                     "room": room,

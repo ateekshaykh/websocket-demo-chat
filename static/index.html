@@ -508,6 +508,91 @@
     box-shadow: none;
   }
 
+  /* Incoming ("them") messages get an avatar beside a column of who/bubble/meta. */
+  .msg.them { flex-direction: row; align-items: flex-end; gap: 0.5rem; }
+  .msg.them .msg-col { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+  .avatar-slot { width: 30px; flex: 0 0 auto; }
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 0.68rem;
+    color: #06101a;
+  }
+
+  /* ---------- Reactions ---------- */
+  .bubble-wrap { position: relative; display: inline-flex; max-width: 100%; }
+  .react-trigger {
+    position: absolute;
+    bottom: -8px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--canvas-subtle);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity .15s, transform .1s;
+  }
+  .msg.them .react-trigger { right: -8px; }
+  .msg.me .react-trigger { left: -8px; }
+  .react-trigger:hover, .react-trigger:focus-visible { opacity: 1; transform: scale(1.1); }
+
+  .reaction-picker {
+    position: absolute;
+    bottom: 100%;
+    margin-bottom: 6px;
+    display: flex;
+    gap: 2px;
+    padding: 0.3rem;
+    background: rgba(10, 12, 28, 0.92);
+    border: 1px solid var(--glass-border-strong);
+    border-radius: 999px;
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    z-index: 5;
+  }
+  .msg.them .reaction-picker { right: 0; }
+  .msg.me .reaction-picker { left: 0; }
+  .reaction-picker button {
+    background: transparent;
+    border: none;
+    font-size: 1.05rem;
+    line-height: 1;
+    padding: 0.28rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background .1s, transform .1s;
+  }
+  .reaction-picker button:hover { background: var(--glass-strong); transform: scale(1.18); }
+
+  .reactions { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .reactions:empty { display: none; }
+  .reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.74rem;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .reaction-pill.mine { border-color: var(--accent); background: rgba(34,211,238,0.14); color: var(--fg); }
+
   /* ---------- Typing indicator ---------- */
   #typing-indicator {
     flex: 0 0 auto;
@@ -947,7 +1032,61 @@
     lastRenderedMsgMeta = null;
   }
 
-  function appendMessage(kind, who, text, colorKey, isoTimestamp) {
+  // ---------- reactions ----------
+  const QUICK_EMOJIS = ["👍", "❤️", "😂", "🎉", "😮"];
+  const messageElements = new Map(); // message_id -> .msg element
+
+  function closeAllReactionPickers() {
+    document.querySelectorAll(".reaction-picker").forEach((p) => p.remove());
+  }
+
+  function sendReaction(messageId, emoji) {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !messageId) return;
+    ws.send(JSON.stringify({ type: "reaction", message_id: messageId, emoji }));
+  }
+
+  function openReactionPicker(triggerBtn, messageId) {
+    closeAllReactionPickers();
+    const picker = document.createElement("div");
+    picker.className = "reaction-picker";
+    QUICK_EMOJIS.forEach((emoji) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = emoji;
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        sendReaction(messageId, emoji);
+        closeAllReactionPickers();
+      });
+      picker.appendChild(b);
+    });
+    triggerBtn.parentElement.appendChild(picker);
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".reaction-picker") && !e.target.closest(".react-trigger")) {
+      closeAllReactionPickers();
+    }
+  });
+
+  function renderReactions(wrap, reactionsMap) {
+    const container = wrap.querySelector(".reactions");
+    if (!container) return;
+    container.innerHTML = "";
+    const messageId = wrap.dataset.messageId;
+    Object.entries(reactionsMap || {}).forEach(([emoji, users]) => {
+      if (!users || users.length === 0) return;
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "reaction-pill" + (users.includes(username) ? " mine" : "");
+      pill.textContent = `${emoji} ${users.length}`;
+      pill.title = users.join(", ");
+      pill.addEventListener("click", () => sendReaction(messageId, emoji));
+      container.appendChild(pill);
+    });
+  }
+
+  function appendMessage(kind, who, text, colorKey, isoTimestamp, messageId) {
     const wrap = document.createElement("div");
     const groupKey = kind === "them" || kind === "me" ? (colorKey || who) : null;
     const atMs = isoTimestamp ? new Date(isoTimestamp).getTime() : Date.now();
@@ -967,7 +1106,24 @@
       lastRenderedMsgMeta = null; // a system notice always breaks a grouping run
     } else {
       const color = colorForUser(colorKey || who);
-      wrap.innerHTML = (grouped ? "" : `<div class="who"></div>`) + `<div class="bubble"></div><div class="meta"></div>`;
+      const whoHtml = grouped ? "" : `<div class="who"></div>`;
+      const bodyHtml =
+        whoHtml +
+        `<div class="bubble-wrap"><div class="bubble"></div><button type="button" class="react-trigger" aria-label="Add reaction">🙂</button></div>` +
+        `<div class="reactions"></div><div class="meta"></div>`;
+
+      if (kind === "them") {
+        const avatarHtml = grouped ? "" : `<span class="avatar"></span>`;
+        wrap.innerHTML = `<div class="avatar-slot">${avatarHtml}</div><div class="msg-col">${bodyHtml}</div>`;
+        if (!grouped) {
+          const avatarEl = wrap.querySelector(".avatar");
+          avatarEl.style.background = `linear-gradient(135deg, ${color.from}, ${color.to})`;
+          avatarEl.textContent = (colorKey || who).slice(0, 2).toUpperCase();
+        }
+      } else {
+        wrap.innerHTML = bodyHtml;
+      }
+
       if (!grouped) {
         const whoEl = wrap.querySelector(".who");
         whoEl.textContent = who;
@@ -980,6 +1136,15 @@
       bubbleEl.style.boxShadow = `0 4px 20px ${color.glow}`;
       wrap.querySelector(".meta").textContent = formatTime(new Date(atMs));
       lastRenderedMsgMeta = { kind, key: groupKey, atMs };
+
+      if (messageId) {
+        wrap.dataset.messageId = messageId;
+        messageElements.set(messageId, wrap);
+        wrap.querySelector(".react-trigger").addEventListener("click", (e) => {
+          e.stopPropagation();
+          openReactionPicker(e.currentTarget, messageId);
+        });
+      }
     }
     log.appendChild(wrap);
     log.scrollTop = log.scrollHeight;
@@ -1215,6 +1380,11 @@
         markUserTyping(data.username);
         return;
       }
+      if (data.type === "reaction_update") {
+        const el = messageElements.get(data.message_id);
+        if (el) renderReactions(el, data.reactions);
+        return;
+      }
       if (data.type === "roster") {
         logEvent("recv", `roster: ${data.message}`);
         maybeInsertDayDivider(data.timestamp);
@@ -1231,7 +1401,7 @@
         clearUserTyping(data.username);
         maybeInsertDayDivider(data.timestamp);
         const mine = data.username === username;
-        appendMessage(mine ? "me" : "them", mine ? "You" : data.username, data.message, data.username, data.timestamp);
+        appendMessage(mine ? "me" : "them", mine ? "You" : data.username, data.message, data.username, data.timestamp, data.id);
       }
     };
 
@@ -1247,6 +1417,8 @@
         hideReconnectBanner();
         log.innerHTML = "";
         resetLogState();
+        closeAllReactionPickers();
+        messageElements.clear();
         typingUsers.forEach((id) => clearTimeout(id));
         typingUsers.clear();
         renderTypingIndicator();
