@@ -14,9 +14,15 @@ marked **[done]** are implemented; the rest are a menu to pick from.
   opens a sheet listing everyone currently in the room, with gradient
   avatars and a "you" marker. Backed by a `users` list the server now
   includes on every roster/join/leave broadcast.
-- **Avatars** — initials in a gradient circle, reusing each user's existing
-  hologram color.
-- **Emoji picker and quick reactions** — e.g. 👍 ❤️ 😂 on hover or long-press.
+- **[done] Avatars** — initials in a gradient circle, reusing each user's
+  existing hologram color. Shown beside incoming ("them") messages, once
+  per grouped run; own messages skip the avatar as usual in chat UIs.
+- **[done] Emoji picker and quick reactions** — a small always-visible
+  reaction trigger on every bubble opens a 👍 ❤️ 😂 🎉 😮 picker. Reactions
+  show as pill counts under the bubble, sync live to everyone in the room,
+  and clicking your own reaction again removes it (toggle). Backed by an
+  in-memory `message_id → {emoji: {usernames}}` store on the server —
+  ephemeral like the rest of this app's state, wiped on restart.
 - **Links and formatting** — clickable URLs, line breaks, and maybe code
   blocks.
 - **"Jump to latest" button** — shown when you've scrolled up and new
