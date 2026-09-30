@@ -423,6 +423,8 @@
     flex-direction: column;
   }
 
+  .log-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
   #log {
     flex: 1;
     min-height: 0;
@@ -437,6 +439,45 @@
   #log::-webkit-scrollbar { width: 8px; }
   #log::-webkit-scrollbar-thumb { background: var(--glass-border-strong); border-radius: 8px; }
   #log::-webkit-scrollbar-track { background: transparent; }
+
+  .jump-latest-btn {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(10, 12, 28, 0.88);
+    border: 1px solid var(--glass-border-strong);
+    color: var(--fg);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    opacity: 0;
+    transition: opacity .2s ease, transform .2s ease;
+    z-index: 3;
+  }
+  .jump-latest-btn.show { display: inline-flex; opacity: 1; transform: translateX(-50%) translateY(0); }
+  .jump-latest-btn .count {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #06101a;
+    border-radius: 999px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  .jump-latest-btn .count:empty { display: none; }
 
   .day-divider {
     align-self: center;
@@ -593,6 +634,36 @@
   }
   .reaction-pill.mine { border-color: var(--accent); background: rgba(34,211,238,0.14); color: var(--fg); }
 
+  /* ---------- Message formatting: links + code ---------- */
+  .bubble a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+  }
+  .bubble a:hover { color: var(--accent-2); }
+  .bubble .inline-code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border);
+    border-radius: 4px;
+    padding: 0.05em 0.35em;
+  }
+  .bubble .code-block {
+    display: block;
+    margin: 0.4rem 0 0.1rem;
+    padding: 0.6rem 0.7rem;
+    background: var(--canvas-inset);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: pre;
+  }
+
   /* ---------- Typing indicator ---------- */
   #typing-indicator {
     flex: 0 0 auto;
@@ -642,6 +713,7 @@
   #send-row {
     flex: 0 0 auto;
     display: flex;
+    align-items: flex-end;
     gap: 0.6rem;
     padding: 0.75rem;
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
@@ -650,24 +722,31 @@
     backdrop-filter: blur(20px) saturate(140%);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
   }
-  #send-row input {
+  #message {
     flex: 1;
     background: var(--canvas-inset);
     border: 1px solid var(--glass-border);
     color: var(--fg);
-    border-radius: 999px;
-    padding: 0.7rem 1rem;
+    border-radius: var(--radius);
+    padding: 0.65rem 1rem;
     font-size: 16px;
+    font-family: var(--sans);
+    line-height: 1.4;
+    resize: none;
+    max-height: 120px;
+    overflow-y: auto;
     outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
-  #send-row input::placeholder { color: var(--fg-subtle); }
-  #send-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+  #message::placeholder { color: var(--fg-subtle); }
+  #message:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
   #send-row button {
+    flex: 0 0 auto;
     background: linear-gradient(135deg, var(--accent-emphasis), var(--accent-2));
     border: none;
     color: #06101a;
     border-radius: 999px;
+    height: 42px;
     padding: 0 1.3rem;
     font-weight: 700;
     font-family: var(--display);
@@ -731,6 +810,42 @@
   .ev.send .m { color: var(--accent); }
   .ev.recv .m { color: var(--fg); }
   .ev.error .m, .ev.close .m { color: var(--danger); }
+
+  .sound-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.1rem 0 0.9rem;
+    margin-bottom: 0.7rem;
+    border-bottom: 1px solid var(--glass-border);
+    font-size: 0.82rem;
+    color: var(--fg-muted);
+  }
+  .sound-toggle-row .label { display: flex; align-items: center; gap: 0.5rem; }
+  .sound-toggle-row svg { flex: 0 0 auto; }
+  #sound-toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid var(--glass-border);
+    background: var(--canvas-inset);
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background .15s, border-color .15s;
+  }
+  #sound-toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--fg-subtle);
+    transition: transform .15s, background .15s;
+  }
+  #sound-toggle.on { background: rgba(34,211,238,0.18); border-color: var(--accent); }
+  #sound-toggle.on::after { transform: translateX(18px); background: var(--accent); }
 
   /* ---------- Online users panel ---------- */
   .online-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -858,7 +973,12 @@
     </section>
 
     <section id="chat-screen">
-      <div id="log"></div>
+      <div class="log-wrap">
+        <div id="log"></div>
+        <button id="jump-latest" class="jump-latest-btn" type="button">
+          <span aria-hidden="true">↓</span> New messages <span id="jump-latest-count" class="count"></span>
+        </button>
+      </div>
       <div id="typing-indicator" aria-live="polite">
         <span class="typing-pill">
           <span class="typing-dots"><span></span><span></span><span></span></span>
@@ -866,7 +986,7 @@
         </span>
       </div>
       <form id="send-row">
-        <input id="message" placeholder="Message" autocomplete="off" />
+        <textarea id="message" placeholder="Message" rows="1" autocomplete="off"></textarea>
         <button type="submit">Send</button>
       </form>
     </section>
@@ -880,6 +1000,13 @@
     <button id="close-panel" class="icon-btn" aria-label="Close">✕</button>
   </div>
   <div class="sheet-body">
+    <div class="sound-toggle-row">
+      <span class="label">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        Message sound
+      </span>
+      <button id="sound-toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle message sound"></button>
+    </div>
     <div id="event-log"></div>
   </div>
 </div>
@@ -928,6 +1055,13 @@
 
   const nameTakenWarning = document.getElementById("name-taken-warning");
   const nameTakenText = document.getElementById("name-taken-text");
+
+  const logWrap = document.querySelector(".log-wrap");
+  const jumpBtn = document.getElementById("jump-latest");
+  const jumpCountEl = document.getElementById("jump-latest-count");
+  const soundToggleBtn = document.getElementById("sound-toggle");
+
+  const BASE_TITLE = document.title;
 
   let ws = null;
   let username = "";
@@ -1086,7 +1220,131 @@
     });
   }
 
+  // ---------- message formatting: links, line breaks, code ----------
+  // All user text is HTML-escaped first; the handful of tags below are the
+  // only markup ever introduced, and only around content that has already
+  // been escaped — never from raw, un-escaped user input.
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function linkify(escapedText) {
+    return escapedText.replace(/(https?:\/\/[^\s<]+)|(\bwww\.[^\s<]+\.[^\s<]+)/gi, (match) => {
+      let trail = "";
+      while (match.length && /[),.:;!?'"]/.test(match[match.length - 1])) {
+        trail = match[match.length - 1] + trail;
+        match = match.slice(0, -1);
+      }
+      if (!match) return trail;
+      const href = /^https?:\/\//i.test(match) ? match : `https://${match}`;
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer nofollow">${match}</a>${trail}`;
+    });
+  }
+
+  function renderMessageBody(rawText) {
+    const escaped = escapeHtml(rawText);
+
+    // Pull code out first so its contents never get linkified or have their
+    // newlines turned into <br>.
+    const codeBlocks = [];
+    let working = escaped.replace(/```([\s\S]*?)```/g, (_, code) => {
+      codeBlocks.push(code.replace(/^\n/, ""));
+      return `\u0000B${codeBlocks.length - 1}\u0000`;
+    });
+    const codeSpans = [];
+    working = working.replace(/`([^`\n]+)`/g, (_, code) => {
+      codeSpans.push(code);
+      return `\u0000S${codeSpans.length - 1}\u0000`;
+    });
+
+    working = linkify(working).replace(/\n/g, "<br>");
+
+    working = working.replace(/\u0000S(\d+)\u0000/g, (_, i) => `<span class="inline-code">${codeSpans[i]}</span>`);
+    working = working.replace(/\u0000B(\d+)\u0000/g, (_, i) => `<span class="code-block">${codeBlocks[i]}</span>`);
+    return working;
+  }
+
+  // ---------- jump-to-latest ----------
+  let unseenCount = 0;
+
+  function isNearBottom() {
+    return log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  }
+
+  function showJumpButton() {
+    jumpCountEl.textContent = unseenCount > 0 ? String(unseenCount) : "";
+    jumpBtn.classList.add("show");
+  }
+
+  function hideJumpButton() {
+    jumpBtn.classList.remove("show");
+    unseenCount = 0;
+  }
+
+  log.addEventListener("scroll", () => {
+    if (isNearBottom()) hideJumpButton();
+  });
+
+  jumpBtn.addEventListener("click", () => {
+    log.scrollTop = log.scrollHeight;
+    hideJumpButton();
+  });
+
+  // ---------- unread tab badge + sound ----------
+  let soundEnabled = true;
+  try { soundEnabled = localStorage.getItem("chat-sound") !== "off"; } catch (_) {}
+
+  function setSoundEnabled(on) {
+    soundEnabled = on;
+    soundToggleBtn.classList.toggle("on", on);
+    soundToggleBtn.setAttribute("aria-checked", String(on));
+    try { localStorage.setItem("chat-sound", on ? "on" : "off"); } catch (_) {}
+  }
+  setSoundEnabled(soundEnabled);
+  soundToggleBtn.addEventListener("click", () => setSoundEnabled(!soundEnabled));
+
+  let audioCtx = null;
+  function playPing() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(660, now + 0.15);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch (_) {}
+  }
+
+  let unreadTabCount = 0;
+
+  function clearUnreadBadge() {
+    unreadTabCount = 0;
+    document.title = BASE_TITLE;
+  }
+
+  function notifyNewMessage(who, text) {
+    if (document.hidden) {
+      unreadTabCount += 1;
+      document.title = `(${unreadTabCount}) ${BASE_TITLE}`;
+      if (soundEnabled) playPing();
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) clearUnreadBadge();
+  });
+  window.addEventListener("focus", clearUnreadBadge);
+
   function appendMessage(kind, who, text, colorKey, isoTimestamp, messageId) {
+    const wasNearBottom = isNearBottom();
     const wrap = document.createElement("div");
     const groupKey = kind === "them" || kind === "me" ? (colorKey || who) : null;
     const atMs = isoTimestamp ? new Date(isoTimestamp).getTime() : Date.now();
@@ -1130,7 +1388,7 @@
         whoEl.style.backgroundImage = `linear-gradient(90deg, ${color.from}, ${color.to})`;
       }
       const bubbleEl = wrap.querySelector(".bubble");
-      bubbleEl.textContent = text;
+      bubbleEl.innerHTML = renderMessageBody(text);
       bubbleEl.style.background = color.tint;
       bubbleEl.style.borderColor = color.from;
       bubbleEl.style.boxShadow = `0 4px 20px ${color.glow}`;
@@ -1147,7 +1405,16 @@
       }
     }
     log.appendChild(wrap);
-    log.scrollTop = log.scrollHeight;
+
+    if (kind === "me" || wasNearBottom) {
+      log.scrollTop = log.scrollHeight;
+      hideJumpButton();
+    } else if (kind === "them") {
+      unseenCount += 1;
+      showJumpButton();
+    }
+
+    if (kind === "them") notifyNewMessage(who, text);
   }
 
   // ---------- online users panel ----------
@@ -1248,6 +1515,20 @@
     if (now - lastTypingSentAt < TYPING_SEND_THROTTLE_MS) return;
     lastTypingSentAt = now;
     ws.send(JSON.stringify({ type: "typing" }));
+  });
+
+  // ---------- composer: auto-grow + Enter to send, Shift+Enter for a newline ----------
+  function autoGrowMessageInput() {
+    messageInput.style.height = "auto";
+    messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + "px";
+  }
+  messageInput.addEventListener("input", autoGrowMessageInput);
+
+  messageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      sendRow.requestSubmit();
+    }
   });
 
   // ---------- session persistence ----------
@@ -1419,6 +1700,8 @@
         resetLogState();
         closeAllReactionPickers();
         messageElements.clear();
+        hideJumpButton();
+        clearUnreadBadge();
         typingUsers.forEach((id) => clearTimeout(id));
         typingUsers.clear();
         renderTypingIndicator();
@@ -1457,6 +1740,7 @@
     ws.send(payload);
     logEvent("send", `ws.send(${payload})`);
     messageInput.value = "";
+    autoGrowMessageInput();
     lastTypingSentAt = 0;
   });
 
