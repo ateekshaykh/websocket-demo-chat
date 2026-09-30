@@ -194,6 +194,17 @@
   .status-dot.closed { background: var(--danger); box-shadow: 0 0 0 4px rgba(251,113,133,.18), 0 0 10px rgba(251,113,133,.6); }
   @keyframes pulse { 50% { opacity: .35; } }
 
+  .status-text {
+    flex: 0 1 auto;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    color: var(--fg-subtle);
+  }
+  .status-text:empty { display: none; }
+
   /* ---------- Header icon / action buttons ---------- */
   .icon-btn {
     position: relative;
@@ -787,6 +798,13 @@
   }
   #send-row button:hover { filter: brightness(1.08); }
   #send-row button:active { transform: scale(.97); }
+  #send-row button:disabled { opacity: 0.45; cursor: not-allowed; filter: none; box-shadow: none; }
+  #send-row button.sending { animation: sendPulse .3s ease; }
+  @keyframes sendPulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(.86); }
+    100% { transform: scale(1); }
+  }
 
   /* ---------- Connection log panel ---------- */
   #panel-backdrop {
@@ -1010,6 +1028,7 @@
 <div id="app-shell">
   <header>
     <span id="status-dot" class="status-dot"></span>
+    <span id="status-text" class="status-text" aria-live="polite"></span>
     <div class="brand-mark" aria-hidden="true">
       <!-- Same artwork as /static/favicon.svg, minus its white rounded-square
            backdrop — just the mark, gradient-filled to match the theme. -->
@@ -1094,7 +1113,7 @@
       </div>
       <form id="send-row">
         <textarea id="message" placeholder="Message" rows="1" autocomplete="off"></textarea>
-        <button type="submit">Send</button>
+        <button id="send-button" type="submit">Send</button>
       </form>
     </section>
   </main>
@@ -1147,9 +1166,11 @@
   const chatScreen = document.getElementById("chat-screen");
   const headerTitle = document.getElementById("header-title");
   const statusDot = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
   const log = document.getElementById("log");
   const sendRow = document.getElementById("send-row");
   const messageInput = document.getElementById("message");
+  const sendButton = document.getElementById("send-button");
   const leaveBtn = document.getElementById("leave-btn");
   const typingIndicator = document.getElementById("typing-indicator");
   const typingTextEl = typingIndicator.querySelector(".typing-text");
@@ -1593,8 +1614,23 @@
     renderOnlineList();
   }
 
+  const COLD_START_HINT_MS = 4000; // Render's free tier can take a while to wake from idle
+  let coldStartTimer = null;
+
   function setStatus(state) {
     statusDot.className = "status-dot " + state;
+    clearTimeout(coldStartTimer);
+    if (state === "connecting") {
+      statusText.textContent = "Connecting…";
+      coldStartTimer = setTimeout(() => {
+        statusText.textContent = "Waking up the server… this can take a bit on the free tier";
+      }, COLD_START_HINT_MS);
+    } else if (state === "closed") {
+      statusText.textContent = "Disconnected";
+    } else {
+      statusText.textContent = "";
+    }
+    updateSendButtonState();
   }
 
   function wsUrl(room, user) {
@@ -1662,6 +1698,16 @@
       sendRow.requestSubmit();
     }
   });
+
+  // ---------- send button state ----------
+  function updateSendButtonState() {
+    const empty = messageInput.value.trim() === "";
+    const offline = !ws || ws.readyState !== WebSocket.OPEN;
+    sendButton.disabled = empty || offline;
+  }
+  messageInput.addEventListener("input", updateSendButtonState);
+  sendButton.addEventListener("animationend", () => sendButton.classList.remove("sending"));
+  updateSendButtonState();
 
   // ---------- session persistence ----------
   // The socket itself dies with the page, so on refresh we remember who was
@@ -1907,6 +1953,7 @@
         chatScreen.style.display = "none";
         joinScreen.style.display = "flex";
         headerTitle.textContent = "WebSocket Chat";
+        statusText.textContent = "";
         renderRecentRooms();
         return;
       }
@@ -1993,8 +2040,12 @@
     const payload = JSON.stringify({ message: text });
     ws.send(payload);
     logEvent("send", `ws.send(${payload})`);
+    sendButton.classList.remove("sending");
+    void sendButton.offsetWidth; // restart the animation if sent again quickly
+    sendButton.classList.add("sending");
     messageInput.value = "";
     autoGrowMessageInput();
+    updateSendButtonState();
     lastTypingSentAt = 0;
   });
 
