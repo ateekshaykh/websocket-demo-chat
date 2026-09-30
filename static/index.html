@@ -396,6 +396,36 @@
   .field-warning svg { flex: 0 0 auto; }
   .field-warning[hidden] { display: none; }
 
+  .field-hint { font-size: 0.74rem; color: var(--fg-subtle); margin: 0.1rem 0 0; }
+  .field-hint[hidden] { display: none; }
+
+  .field-label-row { display: flex; align-items: center; justify-content: space-between; }
+  .text-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    padding: 0;
+  }
+  .text-btn:hover { color: var(--accent-2); }
+
+  .recent-rooms { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .recent-rooms[hidden] { display: none; }
+  .room-chip {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    color: var(--fg-muted);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.76rem;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .room-chip:hover { border-color: var(--accent); color: var(--fg); }
+
   button.primary {
     position: relative;
     background: linear-gradient(90deg, var(--accent-emphasis), var(--accent-2));
@@ -882,6 +912,78 @@
   }
   .online-empty { color: var(--fg-subtle); font-size: 0.85rem; text-align: center; padding: 1rem 0; }
 
+  .invite-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    color: var(--fg);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    margin-bottom: 0.8rem;
+    transition: border-color .15s, color .15s;
+  }
+  .invite-link-btn:hover { border-color: var(--accent); }
+  .invite-link-btn.copied { border-color: var(--success); color: var(--success); }
+
+  /* ---------- Leave confirmation ---------- */
+  .confirm-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(3,4,16,.65);
+    backdrop-filter: blur(2px);
+    z-index: 20;
+  }
+  .confirm-backdrop.show { display: block; }
+  #leave-confirm {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(.96);
+    width: min(300px, calc(100vw - 2.5rem));
+    background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 1.3rem 1.2rem;
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    z-index: 21;
+    opacity: 0;
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  #leave-confirm.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .confirm-text { margin: 0 0 1rem; font-size: 0.95rem; color: var(--fg); text-align: center; }
+  .confirm-text strong {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .confirm-actions { display: flex; gap: 0.6rem; }
+  .confirm-btn {
+    flex: 1;
+    padding: 0.6rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: var(--sans);
+    cursor: pointer;
+  }
+  .confirm-btn.ghost { background: var(--glass); border: 1px solid var(--glass-border); color: var(--fg); }
+  .confirm-btn.ghost:hover { border-color: var(--glass-border-strong); }
+  .confirm-btn.danger { background: linear-gradient(135deg, var(--danger-strong), var(--danger)); border: none; color: #2b0507; }
+  .confirm-btn.danger:hover { filter: brightness(1.08); }
+
   /* ---------- Desktop: float the shell as a card over the aurora ---------- */
   @media (min-width: 760px) {
     body { display: flex; align-items: center; justify-content: center; padding: 2.5rem 1.5rem; }
@@ -964,9 +1066,14 @@
             </p>
           </div>
           <div class="field" style="margin-top:0.6rem;">
-            <label for="room">Room name</label>
+            <div class="field-label-row">
+              <label for="room">Room name</label>
+              <button type="button" id="random-room-btn" class="text-btn">🎲 Random</button>
+            </div>
             <input type="text" id="room" placeholder="general" value="general" required autocomplete="off" />
+            <p id="room-preview" class="field-hint" hidden></p>
           </div>
+          <div id="recent-rooms" class="recent-rooms" hidden></div>
           <button type="submit" class="primary" style="width:100%;">Connect</button>
         </form>
       </div>
@@ -1017,7 +1124,20 @@
     <button id="close-online-panel" class="icon-btn" aria-label="Close">✕</button>
   </div>
   <div class="sheet-body">
+    <button id="copy-invite-link" type="button" class="invite-link-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span id="copy-invite-label">Copy invite link</span>
+    </button>
     <ul id="online-list" class="online-list"></ul>
+  </div>
+</div>
+
+<div id="leave-confirm-backdrop" class="confirm-backdrop"></div>
+<div id="leave-confirm" class="confirm-card">
+  <p class="confirm-text">Leave <strong id="leave-confirm-room"></strong>?</p>
+  <div class="confirm-actions">
+    <button id="leave-confirm-cancel" type="button" class="confirm-btn ghost">Cancel</button>
+    <button id="leave-confirm-ok" type="button" class="confirm-btn danger">Leave</button>
   </div>
 </div>
 
@@ -1055,11 +1175,23 @@
 
   const nameTakenWarning = document.getElementById("name-taken-warning");
   const nameTakenText = document.getElementById("name-taken-text");
+  const roomPreviewEl = document.getElementById("room-preview");
+  const randomRoomBtn = document.getElementById("random-room-btn");
+  const recentRoomsEl = document.getElementById("recent-rooms");
 
   const logWrap = document.querySelector(".log-wrap");
   const jumpBtn = document.getElementById("jump-latest");
   const jumpCountEl = document.getElementById("jump-latest-count");
   const soundToggleBtn = document.getElementById("sound-toggle");
+
+  const copyInviteBtn = document.getElementById("copy-invite-link");
+  const copyInviteLabel = document.getElementById("copy-invite-label");
+
+  const leaveConfirmBackdrop = document.getElementById("leave-confirm-backdrop");
+  const leaveConfirm = document.getElementById("leave-confirm");
+  const leaveConfirmRoomEl = document.getElementById("leave-confirm-room");
+  const leaveConfirmCancel = document.getElementById("leave-confirm-cancel");
+  const leaveConfirmOk = document.getElementById("leave-confirm-ok");
 
   const BASE_TITLE = document.title;
 
@@ -1554,11 +1686,12 @@
     }
   }
 
-  // ---------- best-effort "name already taken" warning ----------
-  // Purely informational: the server doesn't enforce unique usernames (that
-  // would break the same-user-reconnecting-after-a-refresh handling), so
-  // this never blocks submission — it just warns before you connect.
-  let nameCheckTimer = null;
+  // ---------- room info: live "N online" preview + best-effort "name
+  // already taken" warning, sharing one fetch of /api/rooms/{room}/users.
+  // The name check is purely informational: the server doesn't enforce
+  // unique usernames (that would break same-user-reconnecting-after-a-
+  // refresh), so it never blocks submission — it just warns before connect.
+  let roomInfoTimer = null;
 
   function showNameWarning(user, room) {
     nameTakenText.textContent = `"${user}" is already in #${room} — you can still continue, or pick another name.`;
@@ -1569,29 +1702,92 @@
     nameTakenWarning.hidden = true;
   }
 
-  async function checkNameTaken() {
-    const user = usernameInput.value.trim();
+  function showRoomPreview(room, count) {
+    roomPreviewEl.hidden = false;
+    roomPreviewEl.textContent =
+      count === 0 ? `#${room} is empty — you'll be first` : `${count} ${count === 1 ? "person" : "people"} already in #${room}`;
+  }
+
+  function hideRoomPreview() {
+    roomPreviewEl.hidden = true;
+  }
+
+  async function refreshRoomInfo() {
     const room = roomInput.value.trim();
-    if (!user || !room) { hideNameWarning(); return; }
+    if (!room) { hideRoomPreview(); hideNameWarning(); return; }
     try {
       const res = await fetch(`/api/rooms/${encodeURIComponent(room)}/users`);
-      if (!res.ok) { hideNameWarning(); return; }
+      if (!res.ok) { hideRoomPreview(); hideNameWarning(); return; }
       const data = await res.json();
+      showRoomPreview(room, data.count || 0);
+      const user = usernameInput.value.trim();
+      if (!user) { hideNameWarning(); return; }
       const taken = (data.users || []).some((n) => n.toLowerCase() === user.toLowerCase());
       if (taken) showNameWarning(user, room); else hideNameWarning();
     } catch (_) {
-      hideNameWarning(); // offline/unreachable — don't block on a soft check
+      hideRoomPreview(); hideNameWarning(); // offline/unreachable — don't block on a soft check
     }
   }
 
-  function debouncedCheckNameTaken() {
-    clearTimeout(nameCheckTimer);
-    nameCheckTimer = setTimeout(checkNameTaken, 400);
+  function scheduleRoomInfoRefresh() {
+    clearTimeout(roomInfoTimer);
+    roomInfoTimer = setTimeout(refreshRoomInfo, 350);
   }
 
-  usernameInput.addEventListener("input", debouncedCheckNameTaken);
-  roomInput.addEventListener("input", debouncedCheckNameTaken);
-  usernameInput.addEventListener("blur", checkNameTaken);
+  usernameInput.addEventListener("input", scheduleRoomInfoRefresh);
+  roomInput.addEventListener("input", scheduleRoomInfoRefresh);
+  usernameInput.addEventListener("blur", refreshRoomInfo);
+
+  // ---------- random room name ----------
+  const ROOM_ADJECTIVES = ["swift", "lucid", "mellow", "brisk", "cosmic", "quiet", "bold", "amber", "violet", "nimble"];
+  const ROOM_NOUNS = ["otter", "comet", "harbor", "lantern", "meadow", "falcon", "ember", "glacier", "orchard", "nebula"];
+
+  function randomRoomName() {
+    const a = ROOM_ADJECTIVES[Math.floor(Math.random() * ROOM_ADJECTIVES.length)];
+    const n = ROOM_NOUNS[Math.floor(Math.random() * ROOM_NOUNS.length)];
+    const num = Math.floor(Math.random() * 90 + 10);
+    return `${a}-${n}-${num}`;
+  }
+
+  randomRoomBtn.addEventListener("click", () => {
+    roomInput.value = randomRoomName();
+    refreshRoomInfo();
+  });
+
+  // ---------- recent rooms ----------
+  const RECENT_ROOMS_KEY = "chat-recent-rooms";
+  const MAX_RECENT_ROOMS = 6;
+
+  function loadRecentRooms() {
+    try { return JSON.parse(localStorage.getItem(RECENT_ROOMS_KEY)) || []; } catch (_) { return []; }
+  }
+
+  function saveRecentRoom(room) {
+    try {
+      let rooms = loadRecentRooms().filter((r) => r.toLowerCase() !== room.toLowerCase());
+      rooms.unshift(room);
+      localStorage.setItem(RECENT_ROOMS_KEY, JSON.stringify(rooms.slice(0, MAX_RECENT_ROOMS)));
+    } catch (_) {}
+  }
+
+  function renderRecentRooms() {
+    const rooms = loadRecentRooms();
+    recentRoomsEl.innerHTML = "";
+    if (rooms.length === 0) { recentRoomsEl.hidden = true; return; }
+    recentRoomsEl.hidden = false;
+    rooms.forEach((room) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "room-chip";
+      chip.textContent = `#${room}`;
+      chip.addEventListener("click", () => {
+        roomInput.value = room;
+        refreshRoomInfo();
+        usernameInput.focus();
+      });
+      recentRoomsEl.appendChild(chip);
+    });
+  }
 
   joinForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1648,6 +1844,7 @@
       reconnectAttempts = 0;
       hideReconnectBanner();
       saveSession(room, username);
+      saveRecentRoom(room);
       joinScreen.style.display = "none";
       chatScreen.style.display = "flex";
       leaveBtn.classList.add("show");
@@ -1710,6 +1907,7 @@
         chatScreen.style.display = "none";
         joinScreen.style.display = "flex";
         headerTitle.textContent = "WebSocket Chat";
+        renderRecentRooms();
         return;
       }
 
@@ -1724,12 +1922,68 @@
     };
   }
 
-  leaveBtn.addEventListener("click", () => {
+  // ---------- leave confirmation ----------
+  function openLeaveConfirm() {
+    leaveConfirmRoomEl.textContent = currentRoom ? `#${currentRoom}` : "the room";
+    leaveConfirm.classList.add("show");
+    leaveConfirmBackdrop.classList.add("show");
+  }
+
+  function closeLeaveConfirm() {
+    leaveConfirm.classList.remove("show");
+    leaveConfirmBackdrop.classList.remove("show");
+  }
+
+  function performLeave() {
     if (!ws || leaving) return;
     leaving = true;
     clearSession();
-    logEvent("info", "Leave clicked — ws.close(1000, \"left the room\")");
+    logEvent("info", "Leave confirmed — ws.close(1000, \"left the room\")");
     ws.close(1000, "left the room");
+  }
+
+  leaveBtn.addEventListener("click", () => {
+    if (!ws || leaving) return;
+    openLeaveConfirm();
+  });
+  leaveConfirmCancel.addEventListener("click", closeLeaveConfirm);
+  leaveConfirmBackdrop.addEventListener("click", closeLeaveConfirm);
+  leaveConfirmOk.addEventListener("click", () => {
+    closeLeaveConfirm();
+    performLeave();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && leaveConfirm.classList.contains("show")) closeLeaveConfirm();
+  });
+
+  // ---------- copy invite link ----------
+  copyInviteBtn.addEventListener("click", async () => {
+    if (!currentRoom) return;
+    const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(currentRoom)}`;
+    let copied = true;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch (_) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (_) {
+        copied = false;
+      }
+    }
+    if (!copied) return;
+    copyInviteBtn.classList.add("copied");
+    copyInviteLabel.textContent = "Link copied!";
+    setTimeout(() => {
+      copyInviteBtn.classList.remove("copied");
+      copyInviteLabel.textContent = "Copy invite link";
+    }, 1500);
   });
 
   sendRow.addEventListener("submit", (e) => {
@@ -1751,6 +2005,19 @@
     roomInput.value = savedSession.room;
     logEvent("info", `restoring session: ${savedSession.user} in #${savedSession.room}`);
     connect(savedSession.room, savedSession.user);
+  } else {
+    // A shared invite link (?room=general) prefills the room so a recipient
+    // only has to type their name. Only applies when there's no saved
+    // session to restore, which always takes priority.
+    try {
+      const urlRoom = new URLSearchParams(window.location.search).get("room");
+      if (urlRoom && urlRoom.trim()) {
+        roomInput.value = urlRoom.trim();
+        usernameInput.focus();
+      }
+    } catch (_) {}
+    renderRecentRooms();
+    scheduleRoomInfoRefresh();
   }
 </script>
 </body>
