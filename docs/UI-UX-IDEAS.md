@@ -23,12 +23,20 @@ marked **[done]** are implemented; the rest are a menu to pick from.
   and clicking your own reaction again removes it (toggle). Backed by an
   in-memory `message_id → {emoji: {usernames}}` store on the server —
   ephemeral like the rest of this app's state, wiped on restart.
-- **Links and formatting** — clickable URLs, line breaks, and maybe code
-  blocks.
-- **"Jump to latest" button** — shown when you've scrolled up and new
-  messages arrive.
-- **Unread badge and sound** — tab title like `(3) WebSocket Chat` and an
-  optional soft ping when the tab is in the background.
+- **[done] Links and formatting** — URLs (`http(s)://` and bare `www.`) are
+  clickable, `` `code` `` renders inline and ``` ```blocks``` ``` as a
+  `<pre>`, and the composer is now a Shift+Enter-for-newline textarea so
+  real line breaks render as `<br>`. All user text is HTML-escaped first;
+  the tags above are the only markup ever added, and only around already-
+  escaped content.
+- **[done] "Jump to latest" button** — if you've scrolled up and a new
+  message from someone else arrives, a floating pill shows an unseen count
+  instead of yanking your scroll position; your own sends still
+  auto-scroll. Clicking it (or scrolling back down yourself) dismisses it.
+- **[done] Unread badge and sound** — while the tab is in the background,
+  incoming messages update the title to `(3) WebSocket Chat` and play a
+  short synthesized chime (Web Audio, no audio file needed), with a
+  persisted on/off toggle in the connection-log panel. Clears on refocus.
 
 ## Joining and leaving
 
