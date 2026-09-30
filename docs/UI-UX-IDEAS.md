@@ -65,11 +65,16 @@ marked **[done]** are implemented; the rest are a menu to pick from.
   Leave), a banner shows "Reconnecting…" and retries with exponential
   backoff (1s → 15s cap), with a manual "Retry now" button. The chat screen
   and message log stay put instead of kicking you to the join screen.
-- **Friendlier status** — a text pill like "Connected" or "Reconnecting"
-  beside the status dot. Render's cold starts also deserve a "Waking up the
-  server…" message.
-- **Send button states** — disabled when empty or offline, with a subtle
-  sending animation.
+- **[done] Friendlier status** — a text label beside the status dot, visible
+  on both the join screen and in chat (it's part of the always-rendered
+  header). Shows "Connecting…", escalating after 4s to "Waking up the
+  server… this can take a bit on the free tier" for Render cold starts;
+  clears once open; shows "Disconnected" on an unexpected drop (the
+  reconnect banner takes over from there); stays clear after an explicit
+  Leave. Capped at 42vw with an ellipsis so it can't overflow the header.
+- **[done] Send button states** — disabled while the message box is empty
+  or the connection isn't open (recomputed on every keystroke and status
+  change), and gives a brief scale-pulse on send.
 
 ## Visual polish
 
