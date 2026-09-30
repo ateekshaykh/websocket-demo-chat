@@ -40,17 +40,24 @@ marked **[done]** are implemented; the rest are a menu to pick from.
 
 ## Joining and leaving
 
-- **Better join screen** — recent rooms as chips, a "random room name"
-  button, and a live "3 online" preview for the room.
+- **[done] Better join screen** — recently-used rooms (persisted in
+  localStorage) show as clickable chips, a 🎲 Random button generates a
+  fun room name, and a live "N people already in #room" / "empty — you'll
+  be first" preview updates as you type, sharing one fetch with the
+  duplicate-name check below.
 - **[done] Inline validation** — a soft, non-blocking "name already taken in
   this room" warning while typing, backed by a new read-only
   `GET /api/rooms/{room}/users` endpoint. It's intentionally a warning, not
   a hard block, since the server can't reliably tell "a different person
   took this name" apart from "you, reconnecting after a refresh."
-- **Shareable room links** — `/?room=general` opens with the room prefilled,
-  plus a copy-link button in the header.
-- **Leave confirmation** — a small confirm step so one mis-tap doesn't drop
-  you out.
+- **[done] Shareable room links** — `/?room=general` prefills the room field
+  (and focuses the name field) for a fresh visitor, so they only have to
+  type a name; a saved session still always takes priority on refresh. A
+  "Copy invite link" button in the online-users panel copies the current
+  room's link.
+- **[done] Leave confirmation** — clicking Leave opens a small themed
+  "Leave #room?" dialog (Cancel / Leave) instead of disconnecting
+  immediately, so one mis-tap doesn't drop you out.
 
 ## Connection and status
 
