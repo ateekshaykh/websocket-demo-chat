@@ -7,6 +7,12 @@
 <meta name="theme-color" content="#05060f" />
 <title>WebSocket Chat</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+<link rel="manifest" href="/static/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Chat" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -30,7 +36,7 @@
 
     --fg: #eef1fb;
     --fg-muted: #9aa3c0;
-    --fg-subtle: #6b7394;
+    --fg-subtle: #6e7696; /* >=4.5:1 on --canvas — WCAG AA for normal text */
 
     --grid-line: rgba(255, 255, 255, .035);
     --aurora-opacity-1: 0.55;
@@ -97,7 +103,7 @@
       --glass-border-strong: rgba(15, 23, 42, 0.2);
       --fg: #1b1f2e;
       --fg-muted: #5b6275;
-      --fg-subtle: #878fa3;
+      --fg-subtle: #677087; /* >=4.5:1 on --canvas — WCAG AA for normal text */
       --grid-line: rgba(15, 23, 42, .05);
       --aurora-opacity-1: 0.28;
       --aurora-opacity-2: 0.16;
@@ -118,7 +124,7 @@
     --glass-border-strong: rgba(15, 23, 42, 0.2);
     --fg: #1b1f2e;
     --fg-muted: #5b6275;
-    --fg-subtle: #878fa3;
+    --fg-subtle: #677087; /* >=4.5:1 on --canvas — WCAG AA for normal text */
     --grid-line: rgba(15, 23, 42, .05);
     --aurora-opacity-1: 0.28;
     --aurora-opacity-2: 0.16;
@@ -307,6 +313,9 @@
   .status-dot.open { background: var(--success); box-shadow: 0 0 0 4px rgba(52,211,153,.18), 0 0 10px rgba(52,211,153,.7); }
   .status-dot.closed { background: var(--danger); box-shadow: 0 0 0 4px rgba(251,113,133,.18), 0 0 10px rgba(251,113,133,.6); }
   @keyframes pulse { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) {
+    .status-dot.connecting { animation: none; }
+  }
 
   .status-text {
     flex: 0 1 auto;
@@ -720,6 +729,9 @@
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .msg { animation: none; }
+  }
   .msg .bubble {
     background: var(--glass);
     border: 1px solid var(--glass-border);
@@ -932,6 +944,9 @@
   @keyframes typingBounce {
     0%, 60%, 100% { transform: translateY(0); opacity: .45; }
     30% { transform: translateY(-4px); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .typing-dots span { animation: none; opacity: 1; }
   }
 
   #send-row {
@@ -1367,7 +1382,7 @@
 
     <section id="chat-screen">
       <div class="log-wrap">
-        <div id="log"></div>
+        <div id="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages"></div>
         <div id="empty-state" class="empty-state" hidden>
           <span class="empty-state-emoji" aria-hidden="true">👋</span>
           <p>No messages yet — say hi to get things started.</p>
@@ -1426,7 +1441,7 @@
       </span>
       <button id="sound-toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle message sound"></button>
     </div>
-    <div id="event-log"></div>
+    <div id="event-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Connection events"></div>
   </div>
 </div>
 

@@ -127,13 +127,30 @@ marked **[done]** are implemented; the rest are a menu to pick from.
   and closes past an 80px threshold, snapping back below it. A visible
   grip bar marks the drag target. Verified via simulated pointer drags:
   both the follow-finger motion and the threshold-based close/snap-back.
-- **Screen-reader support** — announce new messages with `aria-live`, and
-  check color contrast on the dimmer text.
-- **Reduced motion** — the aurora background already respects
-  `prefers-reduced-motion`, but the message-rise and typing-dot bounce
-  animations don't yet.
-- **PWA support** — installable to the home screen with the logo as the
-  icon.
+- **[done] Screen-reader support** — the message log and connection-log
+  panel are now `role="log"` with `aria-live="polite"` and
+  `aria-relevant="additions"`, so new messages and connection events get
+  announced (one honest trade-off: reaction-pill updates live inside the
+  same region, so they're announced too — standard for chat apps, but not
+  perfectly surgical). Checked `--fg-subtle` (the dimmest text token)
+  against its backgrounds with the actual WCAG contrast formula: dark mode
+  was 4.33:1, light mode as low as 2.74:1, both below the 4.5:1 AA
+  threshold for normal text. Retuned both to ≥4.5:1 on the primary canvas
+  (dark `#6b7394→#6e7696`, light `#878fa3→#677087`) while keeping it
+  visibly dimmer than `--fg-muted`.
+- **[done] Reduced motion** — added `prefers-reduced-motion` guards for
+  every remaining looping/motion animation that didn't already have one:
+  the message-rise entrance, the typing-dot bounce, and the connecting
+  status-dot pulse.
+- **[done] PWA support** — a web manifest (name, icons, `display:
+  standalone`, theme color) plus `apple-touch-icon` and the relevant
+  `apple-mobile-web-app-*` meta tags make the app installable, using the
+  logo as the icon: the favicon SVG directly (crisp on browsers that
+  support SVG manifest icons) paired with a real rasterized 180×180 PNG
+  for iOS, which needs one. Verified by fetching the manifest and icon
+  over HTTP and checking status/content-type/JSON — installability itself
+  (the actual "Add to Home Screen" prompt) isn't something this
+  environment can trigger to verify end-to-end.
 
 ## Connection log
 
