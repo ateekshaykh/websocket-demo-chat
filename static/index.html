@@ -1087,6 +1087,42 @@
   .ev.send .m { color: var(--accent-text); }
   .ev.recv .m { color: var(--fg); }
   .ev.error .m, .ev.close .m { color: var(--danger-text); }
+  .ev[hidden] { display: none; }
+
+  .log-intro {
+    font-size: 0.78rem;
+    color: var(--fg-muted);
+    line-height: 1.5;
+    margin: -0.2rem 0 0.9rem;
+  }
+
+  .log-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.7rem;
+    flex-wrap: wrap;
+  }
+
+  .log-copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    color: var(--fg-muted);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: border-color .15s, color .15s;
+  }
+  .log-copy-btn:hover { border-color: var(--accent); color: var(--fg); }
+  .log-copy-btn.copied { border-color: var(--success); color: var(--success-text); }
 
   .settings-row {
     display: flex;
@@ -1337,7 +1373,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       <span class="btn-label">Leave</span>
     </button>
-    <button id="open-panel" class="icon-btn" title="Connection log" aria-label="Connection log">
+    <button id="open-panel" class="icon-btn" title="Activity" aria-label="Activity">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 12 8 12 10 6 14 18 16 12 21 12"/></svg>
     </button>
   </header>
@@ -1408,7 +1444,7 @@
 <div id="panel-backdrop"></div>
 <div id="panel" class="sheet">
   <div class="sheet-handle">
-    <h2>Connection log</h2>
+    <h2>Activity</h2>
     <button id="close-panel" class="icon-btn" aria-label="Close">✕</button>
   </div>
   <div class="sheet-body">
@@ -1441,7 +1477,21 @@
       </span>
       <button id="sound-toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle message sound"></button>
     </div>
-    <div id="event-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Connection events"></div>
+    <p class="log-intro">A behind-the-scenes feed — the WebSocket handshake, messages sent and
+      received, and connection changes, as they happen.</p>
+    <div class="log-toolbar">
+      <div class="segmented" role="radiogroup" aria-label="Filter activity">
+        <button type="button" class="seg-btn log-filter-btn active" data-log-filter="all">All</button>
+        <button type="button" class="seg-btn log-filter-btn" data-log-filter="send">Sent</button>
+        <button type="button" class="seg-btn log-filter-btn" data-log-filter="recv">Received</button>
+        <button type="button" class="seg-btn log-filter-btn" data-log-filter="error">Errors</button>
+      </div>
+      <button id="copy-log-btn" type="button" class="log-copy-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span id="copy-log-label">Copy log</span>
+      </button>
+    </div>
+    <div id="event-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Activity events"></div>
   </div>
 </div>
 
@@ -1516,6 +1566,9 @@
 
   const copyInviteBtn = document.getElementById("copy-invite-link");
   const copyInviteLabel = document.getElementById("copy-invite-label");
+
+  const copyLogBtn = document.getElementById("copy-log-btn");
+  const copyLogLabel = document.getElementById("copy-log-label");
 
   const leaveConfirmBackdrop = document.getElementById("leave-confirm-backdrop");
   const leaveConfirm = document.getElementById("leave-confirm");
@@ -1634,14 +1687,71 @@
     return d.toTimeString().split(" ")[0] + "." + String(d.getMilliseconds()).padStart(3, "0");
   }
 
+  // "all" | "send" | "recv" | "error" — "error" also covers "close" rows,
+  // since an unexpected close is the thing you're usually hunting for
+  // alongside outright errors.
+  let logFilter = "all";
+
+  function matchesLogFilter(cls, filter) {
+    if (filter === "all") return true;
+    if (filter === "error") return cls === "error" || cls === "close";
+    return cls === filter;
+  }
+
   function logEvent(cls, text) {
     const row = document.createElement("div");
     row.className = "ev " + cls;
     row.innerHTML = `<span class="t">${nowLabel()}</span><span class="m"></span>`;
     row.querySelector(".m").textContent = text;
+    row.hidden = !matchesLogFilter(cls, logFilter);
     eventLogEl.appendChild(row);
     eventLogEl.scrollTop = eventLogEl.scrollHeight;
   }
+
+  document.querySelectorAll(".log-filter-btn").forEach((b) => {
+    b.addEventListener("click", () => {
+      logFilter = b.dataset.logFilter;
+      document.querySelectorAll(".log-filter-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn === b);
+      });
+      eventLogEl.querySelectorAll(".ev").forEach((row) => {
+        const cls = Array.from(row.classList).find((c) => c !== "ev");
+        row.hidden = !matchesLogFilter(cls, logFilter);
+      });
+    });
+  });
+
+  copyLogBtn.addEventListener("click", async () => {
+    const lines = Array.from(eventLogEl.querySelectorAll(".ev")).map((row) => {
+      const t = row.querySelector(".t").textContent;
+      const m = row.querySelector(".m").textContent;
+      return `${t}  ${m}`;
+    });
+    let copied = true;
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+    } catch (_) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = lines.join("\n");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch (_) {
+        copied = false;
+      }
+    }
+    if (!copied) return;
+    copyLogBtn.classList.add("copied");
+    copyLogLabel.textContent = "Copied!";
+    setTimeout(() => {
+      copyLogBtn.classList.remove("copied");
+      copyLogLabel.textContent = "Copy log";
+    }, 1500);
+  });
 
   function openSheet(sheetEl) {
     document.querySelectorAll(".sheet.show").forEach((s) => s.classList.remove("show"));
@@ -2553,7 +2663,7 @@
   // (reaction pills, room chips) without wiring each one individually.
   const RIPPLE_SELECTOR =
     "button.primary, #send-row button, .icon-btn, .leave-btn, .confirm-btn, .room-chip, " +
-    ".text-btn, .seg-btn, .swatch, .reaction-pill, .invite-link-btn, .react-trigger, " +
+    ".text-btn, .seg-btn, .swatch, .reaction-pill, .invite-link-btn, .log-copy-btn, .react-trigger, " +
     ".jump-latest-btn, .reconnect-retry-btn";
 
   document.addEventListener("pointerdown", (e) => {
