@@ -78,9 +78,21 @@ marked **[done]** are implemented; the rest are a menu to pick from.
 
 ## Visual polish
 
-- **Light theme and toggle** — dark glass suits the app, but some users
-  prefer light; it would also respect the system setting.
-- **Theme accent picker** — e.g. cyan/violet, pink/orange, green/teal.
+- **[done] Light theme and toggle** — an Auto / Light / Dark control in the
+  connection-log panel. Auto follows `prefers-color-scheme` and updates
+  live if the OS theme changes; Light/Dark pin an explicit choice,
+  persisted in localStorage. A light-tuned surface palette keeps the
+  glassmorphism look (frosted panels, aurora, grid) legible on a pale
+  canvas, with a separate deeper-contrast per-user message-color palette
+  so gradient-clipped usernames stay readable. Already-rendered message
+  bubbles repaint live on a switch, not just new ones. `<meta
+  name="theme-color">` updates to match.
+- **[done] Theme accent picker** — cyan/violet (default), pink/orange, and
+  green/teal, picked via swatches next to the theme control and persisted
+  separately from it. Drives buttons, links, focus rings, the aurora
+  background, and the header logo everywhere via CSS custom properties
+  (including RGB-triple tokens for translucent tints/glows) — one
+  consistent brand hue across the whole app, independent of light/dark.
 - **Empty states** — a friendly illustration or hint in a fresh room
   ("Say hi 👋").
 - **Micro-interactions** — message send animation, button ripple, smoother
