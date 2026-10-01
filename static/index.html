@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<meta name="color-scheme" content="dark" />
+<meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#05060f" />
 <title>WebSocket Chat</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -11,6 +11,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
+  /* ===== Theme tokens =====
+     Two independent axes, both attribute-driven on <html> and persisted:
+       data-theme  — "light" | "dark" | absent (follow prefers-color-scheme)
+       data-accent — "cyan-violet" | "pink-orange" | "green-teal" (always explicit)
+     Dark is the unconditional default below; light overrides live in the
+     @media/[data-theme="light"] block further down so nothing about the
+     existing dark look changes unless a theme is actually selected. */
   :root {
     --canvas: #05060f;
     --canvas-subtle: #0a0c1c;
@@ -25,10 +32,20 @@
     --fg-muted: #9aa3c0;
     --fg-subtle: #6b7394;
 
+    --grid-line: rgba(255, 255, 255, .035);
+    --aurora-opacity-1: 0.55;
+    --aurora-opacity-2: 0.35;
+
+    /* Brand accent — overridden per [data-accent] preset below. RGB triples
+       let translucent tints/glows (rgba(var(--accent-rgb), .18) etc.) track
+       whichever preset is active without a combinatorial rule explosion. */
     --accent: #22d3ee;
     --accent-2: #a78bfa;
     --accent-3: #f472b6;
     --accent-emphasis: #06b6d4;
+    --accent-rgb: 34, 211, 238;
+    --accent-2-rgb: 167, 139, 250;
+    --accent-3-rgb: 244, 114, 182;
 
     --success: #34d399;
     --success-emphasis: #10b981;
@@ -36,14 +53,80 @@
     --danger-strong: #f43f5e;
     --attention: #fbbf24;
 
+    /* On-canvas TEXT variants (links, gradient headings, hover states).
+       Equal to the fill colors above by default — bright-on-near-black
+       already reads fine in dark mode. Light mode darkens them via
+       color-mix() below so the same brand hue stays legible on a pale
+       canvas without touching the (always-paired-with-dark-text) button
+       and badge fills, which must stay vivid in both themes. */
+    --accent-text: var(--accent);
+    --accent-2-text: var(--accent-2);
+    --danger-text: var(--danger);
+    --attention-text: var(--attention);
+    --success-text: var(--success);
+
     --radius: 16px;
     --radius-sm: 10px;
     --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
     --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --display: "Space Grotesk", var(--sans);
 
-    --glow-cyan: 0 0 24px rgba(34, 211, 238, 0.35);
-    --glow-violet: 0 0 24px rgba(167, 139, 250, 0.3);
+    --glow-cyan: 0 0 24px rgba(var(--accent-rgb), 0.35);
+    --glow-violet: 0 0 24px rgba(var(--accent-2-rgb), 0.3);
+  }
+
+  /* ---------- Accent presets ---------- */
+  :root[data-accent="pink-orange"] {
+    --accent: #f472b6; --accent-2: #fb923c; --accent-3: #a78bfa; --accent-emphasis: #ec4899;
+    --accent-rgb: 244, 114, 182; --accent-2-rgb: 251, 146, 60; --accent-3-rgb: 167, 139, 250;
+  }
+  :root[data-accent="green-teal"] {
+    --accent: #2dd4bf; --accent-2: #84cc16; --accent-3: #f472b6; --accent-emphasis: #14b8a6;
+    --accent-rgb: 45, 212, 191; --accent-2-rgb: 132, 204, 22; --accent-3-rgb: 244, 114, 182;
+  }
+
+  /* ---------- Light theme ---------- */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --canvas: #f3f5fb;
+      --canvas-subtle: #e9ecf6;
+      --canvas-inset: #ffffff;
+      --glass: rgba(15, 23, 42, 0.045);
+      --glass-strong: rgba(15, 23, 42, 0.08);
+      --glass-border: rgba(15, 23, 42, 0.11);
+      --glass-border-strong: rgba(15, 23, 42, 0.2);
+      --fg: #1b1f2e;
+      --fg-muted: #5b6275;
+      --fg-subtle: #878fa3;
+      --grid-line: rgba(15, 23, 42, .05);
+      --aurora-opacity-1: 0.28;
+      --aurora-opacity-2: 0.16;
+      --accent-text: color-mix(in srgb, var(--accent) 65%, black);
+      --accent-2-text: color-mix(in srgb, var(--accent-2) 55%, black);
+      --danger-text: color-mix(in srgb, var(--danger) 55%, black);
+      --attention-text: color-mix(in srgb, var(--attention) 55%, black);
+      --success-text: color-mix(in srgb, var(--success) 55%, black);
+    }
+  }
+  :root[data-theme="light"] {
+    --canvas: #f3f5fb;
+    --canvas-subtle: #e9ecf6;
+    --canvas-inset: #ffffff;
+    --glass: rgba(15, 23, 42, 0.045);
+    --glass-strong: rgba(15, 23, 42, 0.08);
+    --glass-border: rgba(15, 23, 42, 0.11);
+    --glass-border-strong: rgba(15, 23, 42, 0.2);
+    --fg: #1b1f2e;
+    --fg-muted: #5b6275;
+    --fg-subtle: #878fa3;
+    --grid-line: rgba(15, 23, 42, .05);
+    --aurora-opacity-1: 0.28;
+    --aurora-opacity-2: 0.16;
+    --accent-text: color-mix(in srgb, var(--accent) 65%, black);
+    --accent-2-text: color-mix(in srgb, var(--accent-2) 55%, black);
+    --danger-text: color-mix(in srgb, var(--danger) 55%, black);
+    --attention-text: color-mix(in srgb, var(--attention) 55%, black);
+    --success-text: color-mix(in srgb, var(--success) 55%, black);
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -61,6 +144,7 @@
     height: 100dvh;
     overflow: hidden;
     position: relative;
+    transition: background-color .25s ease, color .25s ease;
   }
 
   /* ---------- Ambient aurora background ---------- */
@@ -75,26 +159,27 @@
     position: absolute;
     border-radius: 50%;
     filter: blur(90px);
-    opacity: 0.55;
+    opacity: var(--aurora-opacity-1);
     will-change: transform;
+    transition: opacity .25s ease;
   }
   .aurora span.a1 {
     width: 46vmax; height: 46vmax;
     top: -14vmax; left: -12vmax;
-    background: radial-gradient(circle at 30% 30%, #22d3ee, transparent 70%);
+    background: radial-gradient(circle at 30% 30%, rgb(var(--accent-rgb)), transparent 70%);
     animation: drift1 22s ease-in-out infinite;
   }
   .aurora span.a2 {
     width: 40vmax; height: 40vmax;
     bottom: -16vmax; right: -10vmax;
-    background: radial-gradient(circle at 60% 60%, #a78bfa, transparent 70%);
+    background: radial-gradient(circle at 60% 60%, rgb(var(--accent-2-rgb)), transparent 70%);
     animation: drift2 26s ease-in-out infinite;
   }
   .aurora span.a3 {
     width: 32vmax; height: 32vmax;
     bottom: 8vmax; left: 8vmax;
-    background: radial-gradient(circle at 50% 50%, #f472b6, transparent 70%);
-    opacity: 0.35;
+    background: radial-gradient(circle at 50% 50%, rgb(var(--accent-3-rgb)), transparent 70%);
+    opacity: var(--aurora-opacity-2);
     animation: drift3 30s ease-in-out infinite;
   }
   .grid-overlay {
@@ -103,8 +188,8 @@
     z-index: 0;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 44px 44px;
     mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 90%);
   }
@@ -156,7 +241,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    filter: drop-shadow(0 0 8px rgba(34,211,238,.5));
+    filter: drop-shadow(0 0 8px rgba(var(--accent-rgb),.5));
   }
   .brand-mark svg { width: 100%; height: 100%; display: block; }
 
@@ -174,7 +259,7 @@
   }
 
   header h1 .room-name {
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    background: linear-gradient(90deg, var(--accent-text), var(--accent-2-text));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -230,7 +315,7 @@
     flex: 0 0 auto;
     stroke: currentColor;
   }
-  .icon-btn:hover { color: var(--accent); border-color: var(--glass-border-strong); box-shadow: 0 0 14px rgba(34,211,238,.18); }
+  .icon-btn:hover { color: var(--accent-text); border-color: var(--glass-border-strong); box-shadow: 0 0 14px rgba(var(--accent-rgb),.18); }
   .icon-btn:active { background: var(--glass-strong); }
 
   .online-btn { display: none; }
@@ -261,7 +346,7 @@
     gap: 0.4rem;
     background: linear-gradient(135deg, rgba(251,113,133,0.14), rgba(244,63,94,0.05));
     border: 1px solid rgba(251,113,133,0.4);
-    color: var(--danger);
+    color: var(--danger-text);
     border-radius: 999px;
     height: 36px;
     padding: 0 0.9rem;
@@ -301,7 +386,7 @@
     background: linear-gradient(135deg, rgba(251,191,36,0.16), rgba(251,191,36,0.05));
     border-bottom: 1px solid rgba(251,191,36,0.35);
     font-size: 0.8rem;
-    color: var(--attention);
+    color: var(--attention-text);
   }
   .reconnect-spinner {
     width: 13px;
@@ -321,7 +406,7 @@
     flex: 0 0 auto;
     background: transparent;
     border: 1px solid rgba(251,191,36,.5);
-    color: var(--attention);
+    color: var(--attention-text);
     border-radius: 999px;
     padding: 0.25rem 0.7rem;
     font-size: 0.72rem;
@@ -367,7 +452,7 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0 0 0.3rem;
-    background: linear-gradient(90deg, var(--fg), var(--accent-2) 120%);
+    background: linear-gradient(90deg, var(--fg), var(--accent-2-text) 120%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -394,14 +479,14 @@
     transition: border-color .15s, box-shadow .15s;
   }
   input[type="text"]::placeholder { color: var(--fg-subtle); }
-  input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.15), var(--glow-cyan); }
+  input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.15), var(--glow-cyan); }
 
   .field-warning {
     display: flex;
     align-items: center;
     gap: 0.35rem;
     font-size: 0.74rem;
-    color: var(--attention);
+    color: var(--attention-text);
     margin: 0.1rem 0 0;
   }
   .field-warning svg { flex: 0 0 auto; }
@@ -414,14 +499,14 @@
   .text-btn {
     background: none;
     border: none;
-    color: var(--accent);
+    color: var(--accent-text);
     font-size: 0.72rem;
     font-weight: 600;
     font-family: var(--sans);
     cursor: pointer;
     padding: 0;
   }
-  .text-btn:hover { color: var(--accent-2); }
+  .text-btn:hover { color: var(--accent-2-text); }
 
   .recent-rooms { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .recent-rooms[hidden] { display: none; }
@@ -673,16 +758,16 @@
     color: var(--fg-muted);
     cursor: pointer;
   }
-  .reaction-pill.mine { border-color: var(--accent); background: rgba(34,211,238,0.14); color: var(--fg); }
+  .reaction-pill.mine { border-color: var(--accent); background: rgba(var(--accent-rgb),0.14); color: var(--fg); }
 
   /* ---------- Message formatting: links + code ---------- */
   .bubble a {
-    color: var(--accent);
+    color: var(--accent-text);
     text-decoration: underline;
     text-underline-offset: 2px;
     word-break: break-all;
   }
-  .bubble a:hover { color: var(--accent-2); }
+  .bubble a:hover { color: var(--accent-2-text); }
   .bubble .inline-code {
     font-family: var(--mono);
     font-size: 0.86em;
@@ -742,7 +827,7 @@
     border-radius: 50%;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     animation: typingBounce 1.2s infinite ease-in-out;
-    box-shadow: 0 0 6px rgba(34,211,238,.6);
+    box-shadow: 0 0 6px rgba(var(--accent-rgb),.6);
   }
   .typing-dots span:nth-child(2) { animation-delay: .15s; }
   .typing-dots span:nth-child(3) { animation-delay: .3s; }
@@ -780,7 +865,7 @@
     transition: border-color .15s, box-shadow .15s;
   }
   #message::placeholder { color: var(--fg-subtle); }
-  #message:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+  #message:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.15); }
   #send-row button {
     flex: 0 0 auto;
     background: linear-gradient(135deg, var(--accent-emphasis), var(--accent-2));
@@ -793,7 +878,7 @@
     font-family: var(--display);
     font-size: 0.9rem;
     cursor: pointer;
-    box-shadow: 0 6px 18px rgba(34, 211, 238, .25);
+    box-shadow: 0 6px 18px rgba(var(--accent-rgb), .25);
     transition: filter .15s, transform .1s;
   }
   #send-row button:hover { filter: brightness(1.08); }
@@ -820,7 +905,7 @@
     position: fixed;
     left: 0; right: 0; bottom: 0;
     max-height: 82dvh;
-    background: rgba(10, 12, 28, 0.85);
+    background: color-mix(in srgb, var(--canvas-subtle) 88%, transparent);
     backdrop-filter: blur(26px) saturate(160%);
     -webkit-backdrop-filter: blur(26px) saturate(160%);
     border-top: 1px solid var(--glass-border-strong);
@@ -854,12 +939,12 @@
   .ev .t { color: var(--fg-subtle); flex: 0 0 auto; }
   .ev .m { flex: 1; word-break: break-word; }
   .ev.info .m { color: var(--fg-muted); }
-  .ev.open .m { color: var(--success); }
-  .ev.send .m { color: var(--accent); }
+  .ev.open .m { color: var(--success-text); }
+  .ev.send .m { color: var(--accent-text); }
   .ev.recv .m { color: var(--fg); }
-  .ev.error .m, .ev.close .m { color: var(--danger); }
+  .ev.error .m, .ev.close .m { color: var(--danger-text); }
 
-  .sound-toggle-row {
+  .settings-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -870,8 +955,48 @@
     font-size: 0.82rem;
     color: var(--fg-muted);
   }
-  .sound-toggle-row .label { display: flex; align-items: center; gap: 0.5rem; }
-  .sound-toggle-row svg { flex: 0 0 auto; }
+  .settings-row .label { display: flex; align-items: center; gap: 0.5rem; }
+  .settings-row svg { flex: 0 0 auto; }
+
+  .segmented {
+    display: flex;
+    gap: 2px;
+    background: var(--canvas-inset);
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    padding: 2px;
+  }
+  .seg-btn {
+    background: none;
+    border: none;
+    color: var(--fg-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--sans);
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .seg-btn.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #06101a;
+  }
+
+  .swatches { display: flex; gap: 0.5rem; }
+  .swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(127,127,127,.3);
+    transition: box-shadow .15s, transform .1s;
+  }
+  .swatch:hover { transform: scale(1.08); }
+  .swatch.active { box-shadow: 0 0 0 2px var(--canvas-subtle), 0 0 0 4px var(--fg-muted); }
+
   #sound-toggle {
     position: relative;
     width: 40px;
@@ -892,7 +1017,7 @@
     background: var(--fg-subtle);
     transition: transform .15s, background .15s;
   }
-  #sound-toggle.on { background: rgba(34,211,238,0.18); border-color: var(--accent); }
+  #sound-toggle.on { background: rgba(var(--accent-rgb),0.18); border-color: var(--accent); }
   #sound-toggle.on::after { transform: translateX(18px); background: var(--accent); }
 
   /* ---------- Online users panel ---------- */
@@ -949,7 +1074,7 @@
     transition: border-color .15s, color .15s;
   }
   .invite-link-btn:hover { border-color: var(--accent); }
-  .invite-link-btn.copied { border-color: var(--success); color: var(--success); }
+  .invite-link-btn.copied { border-color: var(--success); color: var(--success-text); }
 
   /* ---------- Leave confirmation ---------- */
   .confirm-backdrop {
@@ -982,7 +1107,7 @@
   #leave-confirm.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
   .confirm-text { margin: 0 0 1rem; font-size: 0.95rem; color: var(--fg); text-align: center; }
   .confirm-text strong {
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    background: linear-gradient(90deg, var(--accent-text), var(--accent-2-text));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -1035,8 +1160,8 @@
       <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="logoGradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#22d3ee"/>
-            <stop offset="100%" stop-color="#a78bfa"/>
+            <stop offset="0%" style="stop-color:var(--accent)"/>
+            <stop offset="100%" style="stop-color:var(--accent-2)"/>
           </linearGradient>
         </defs>
         <g transform="translate(77.829,74.705) scale(0.70)" fill="url(#logoGradient)">
@@ -1126,7 +1251,29 @@
     <button id="close-panel" class="icon-btn" aria-label="Close">✕</button>
   </div>
   <div class="sheet-body">
-    <div class="sound-toggle-row">
+    <div class="settings-row">
+      <span class="label">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66 4.93 19.07M19.07 4.93l-1.41 1.41"/></svg>
+        Theme
+      </span>
+      <div class="segmented" role="radiogroup" aria-label="Theme">
+        <button type="button" class="seg-btn" data-theme-choice="auto">Auto</button>
+        <button type="button" class="seg-btn" data-theme-choice="light">Light</button>
+        <button type="button" class="seg-btn" data-theme-choice="dark">Dark</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <span class="label">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.2-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-4.4-4-8-10-8Z"/></svg>
+        Accent
+      </span>
+      <div class="swatches" role="radiogroup" aria-label="Accent color">
+        <button type="button" class="swatch" data-accent-choice="cyan-violet" style="background:linear-gradient(135deg,#22d3ee,#a78bfa)" aria-label="Cyan and violet"></button>
+        <button type="button" class="swatch" data-accent-choice="pink-orange" style="background:linear-gradient(135deg,#f472b6,#fb923c)" aria-label="Pink and orange"></button>
+        <button type="button" class="swatch" data-accent-choice="green-teal" style="background:linear-gradient(135deg,#2dd4bf,#84cc16)" aria-label="Green and teal"></button>
+      </div>
+    </div>
+    <div class="settings-row">
       <span class="label">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
         Message sound
@@ -1216,6 +1363,102 @@
 
   const BASE_TITLE = document.title;
 
+  // ---------- theme (light / dark / auto) ----------
+  const THEME_KEY = "chat-theme"; // "light" | "dark" | absent = follow the OS
+  const THEME_METAS = { dark: "#05060f", light: "#f3f5fb" };
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  const prefersLight = window.matchMedia("(prefers-color-scheme: light)");
+
+  function effectiveTheme() {
+    const explicit = document.documentElement.getAttribute("data-theme");
+    if (explicit === "light" || explicit === "dark") return explicit;
+    return prefersLight.matches ? "light" : "dark";
+  }
+
+  function updateThemeColorMeta() {
+    if (themeColorMeta) themeColorMeta.setAttribute("content", THEME_METAS[effectiveTheme()]);
+  }
+
+  function setThemeSegActive(choice) {
+    document.querySelectorAll(".seg-btn[data-theme-choice]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.themeChoice === choice);
+    });
+  }
+
+  function applyTheme(choice) {
+    if (choice === "light" || choice === "dark") {
+      document.documentElement.setAttribute("data-theme", choice);
+      try { localStorage.setItem(THEME_KEY, choice); } catch (_) {}
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      try { localStorage.removeItem(THEME_KEY); } catch (_) {}
+      choice = "auto";
+    }
+    updateThemeColorMeta();
+    setThemeSegActive(choice);
+    repaintUserColors();
+  }
+
+  document.querySelectorAll(".seg-btn[data-theme-choice]").forEach((b) => {
+    b.addEventListener("click", () => applyTheme(b.dataset.themeChoice));
+  });
+
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem(THEME_KEY); } catch (_) {}
+  if (savedTheme === "light" || savedTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", savedTheme);
+  }
+  updateThemeColorMeta();
+  setThemeSegActive(savedTheme === "light" || savedTheme === "dark" ? savedTheme : "auto");
+
+  prefersLight.addEventListener("change", () => {
+    if (!document.documentElement.getAttribute("data-theme")) {
+      updateThemeColorMeta();
+      repaintUserColors();
+    }
+  });
+
+  // ---------- accent color preset ----------
+  const ACCENT_KEY = "chat-accent";
+  const ACCENT_CHOICES = ["cyan-violet", "pink-orange", "green-teal"];
+
+  function applyAccent(choice) {
+    if (!ACCENT_CHOICES.includes(choice)) choice = "cyan-violet";
+    document.documentElement.setAttribute("data-accent", choice);
+    try { localStorage.setItem(ACCENT_KEY, choice); } catch (_) {}
+    document.querySelectorAll(".swatch[data-accent-choice]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.accentChoice === choice);
+    });
+  }
+
+  document.querySelectorAll(".swatch[data-accent-choice]").forEach((b) => {
+    b.addEventListener("click", () => applyAccent(b.dataset.accentChoice));
+  });
+
+  let savedAccent = "cyan-violet";
+  try { savedAccent = localStorage.getItem(ACCENT_KEY) || "cyan-violet"; } catch (_) {}
+  applyAccent(savedAccent);
+
+  // Repaints already-rendered per-user colors (online list + message
+  // bubbles) after a theme switch, since they're baked in as inline
+  // styles at render time rather than living in CSS custom properties.
+  function repaintUserColors() {
+    renderOnlineList();
+    document.querySelectorAll("#log .msg[data-color-key]").forEach((wrap) => {
+      const color = colorForUser(wrap.dataset.colorKey);
+      const whoEl = wrap.querySelector(".who");
+      if (whoEl) whoEl.style.backgroundImage = `linear-gradient(90deg, ${color.from}, ${color.to})`;
+      const bubbleEl = wrap.querySelector(".bubble");
+      if (bubbleEl) {
+        bubbleEl.style.background = color.tint;
+        bubbleEl.style.borderColor = color.from;
+        bubbleEl.style.boxShadow = `0 4px 20px ${color.glow}`;
+      }
+      const avatarEl = wrap.querySelector(".avatar");
+      if (avatarEl) avatarEl.style.background = `linear-gradient(135deg, ${color.from}, ${color.to})`;
+    });
+  }
+
   let ws = null;
   let username = "";
   let currentRoom = null;
@@ -1258,8 +1501,10 @@
   // each entry is a gradient pair rendered as gradient text on the
   // username and a matching tinted glow on that user's bubbles. Each
   // username deterministically hashes to one entry so a given name
-  // always renders the same way for everyone.
-  const USER_COLORS = [
+  // always renders the same way for everyone. A separate, deeper-toned
+  // palette is used in light mode so the same gradient-clipped username
+  // text stays legible on a pale canvas instead of washing out.
+  const USER_COLORS_DARK = [
     { from: "#00e5ff", to: "#2979ff", tint: "linear-gradient(135deg, rgba(0,229,255,0.16), rgba(41,121,255,0.07))", glow: "rgba(0,229,255,.3)" },
     { from: "#ff2ec4", to: "#7c3aff", tint: "linear-gradient(135deg, rgba(255,46,196,0.16), rgba(124,58,255,0.07))", glow: "rgba(255,46,196,.3)" },
     { from: "#00ffb2", to: "#00c2ff", tint: "linear-gradient(135deg, rgba(0,255,178,0.16), rgba(0,194,255,0.07))", glow: "rgba(0,255,178,.3)" },
@@ -1269,13 +1514,24 @@
     { from: "#ffd60a", to: "#ff8a00", tint: "linear-gradient(135deg, rgba(255,214,10,0.16), rgba(255,138,0,0.07))", glow: "rgba(255,214,10,.3)" },
     { from: "#5eead4", to: "#818cf8", tint: "linear-gradient(135deg, rgba(94,234,212,0.16), rgba(129,140,248,0.07))", glow: "rgba(94,234,212,.3)" },
   ];
+  const USER_COLORS_LIGHT = [
+    { from: "#0891b2", to: "#1d4ed8", tint: "linear-gradient(135deg, rgba(8,145,178,0.12), rgba(29,78,216,0.06))", glow: "rgba(8,145,178,.2)" },
+    { from: "#be185d", to: "#7c3aed", tint: "linear-gradient(135deg, rgba(190,24,93,0.12), rgba(124,58,237,0.06))", glow: "rgba(190,24,93,.2)" },
+    { from: "#047857", to: "#0891b2", tint: "linear-gradient(135deg, rgba(4,120,87,0.12), rgba(8,145,178,0.06))", glow: "rgba(4,120,87,.2)" },
+    { from: "#c2410c", to: "#be123c", tint: "linear-gradient(135deg, rgba(194,65,12,0.12), rgba(190,18,60,0.06))", glow: "rgba(194,65,12,.2)" },
+    { from: "#65a30d", to: "#047857", tint: "linear-gradient(135deg, rgba(101,163,13,0.12), rgba(4,120,87,0.06))", glow: "rgba(101,163,13,.2)" },
+    { from: "#9333ea", to: "#db2777", tint: "linear-gradient(135deg, rgba(147,51,234,0.12), rgba(219,39,119,0.06))", glow: "rgba(147,51,234,.2)" },
+    { from: "#b45309", to: "#c2410c", tint: "linear-gradient(135deg, rgba(180,83,9,0.12), rgba(194,65,12,0.06))", glow: "rgba(180,83,9,.2)" },
+    { from: "#0d9488", to: "#4338ca", tint: "linear-gradient(135deg, rgba(13,148,136,0.12), rgba(67,56,202,0.06))", glow: "rgba(13,148,136,.2)" },
+  ];
 
   function colorForUser(name) {
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
     }
-    return USER_COLORS[hash % USER_COLORS.length];
+    const palette = effectiveTheme() === "light" ? USER_COLORS_LIGHT : USER_COLORS_DARK;
+    return palette[hash % palette.length];
   }
 
   // ---------- day dividers + message grouping ----------
@@ -1547,6 +1803,7 @@
       bubbleEl.style.boxShadow = `0 4px 20px ${color.glow}`;
       wrap.querySelector(".meta").textContent = formatTime(new Date(atMs));
       lastRenderedMsgMeta = { kind, key: groupKey, atMs };
+      wrap.dataset.colorKey = colorKey || who; // lets a theme switch repaint already-rendered bubbles
 
       if (messageId) {
         wrap.dataset.messageId = messageId;
