@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#05060f" />
 <title>WebSocket Chat</title>
@@ -1033,12 +1033,26 @@
   }
 
   .sheet-handle {
+    position: relative;
     flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.8rem 1rem;
+    padding: 1.1rem 1rem 0.8rem;
     border-bottom: 1px solid var(--glass-border);
+    touch-action: none;
+    cursor: grab;
+  }
+  .sheet-handle::before {
+    content: "";
+    position: absolute;
+    top: 0.45rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--glass-border-strong);
   }
   .sheet-handle h2 {
     font-family: var(--display);
@@ -1629,6 +1643,44 @@
   onlineBtn.addEventListener("click", () => openSheet(onlinePanel));
   closeOnlinePanelBtn.addEventListener("click", closeSheets);
 
+  // ---------- swipe down on a sheet's handle to close it ----------
+  const SWIPE_CLOSE_THRESHOLD = 80;
+
+  function enableSwipeToClose(sheetEl, handleEl) {
+    let startY = null;
+
+    function onMove(e) {
+      if (startY === null) return;
+      const delta = Math.max(0, e.clientY - startY);
+      sheetEl.style.transform = `translateY(${delta}px)`;
+    }
+
+    function onUp(e) {
+      if (startY === null) return;
+      const delta = Math.max(0, e.clientY - startY);
+      sheetEl.style.transition = "";
+      sheetEl.style.transform = "";
+      if (delta > SWIPE_CLOSE_THRESHOLD) closeSheets();
+      startY = null;
+      handleEl.removeEventListener("pointermove", onMove);
+      handleEl.removeEventListener("pointerup", onUp);
+      handleEl.removeEventListener("pointercancel", onUp);
+    }
+
+    handleEl.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      startY = e.clientY;
+      sheetEl.style.transition = "none";
+      try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
+      handleEl.addEventListener("pointermove", onMove);
+      handleEl.addEventListener("pointerup", onUp);
+      handleEl.addEventListener("pointercancel", onUp);
+    });
+  }
+
+  enableSwipeToClose(panel, panel.querySelector(".sheet-handle"));
+  enableSwipeToClose(onlinePanel, onlinePanel.querySelector(".sheet-handle"));
+
   // ---------- chat ----------
   // A duotone "hologram" palette tuned for the dark glassmorphism theme —
   // each entry is a gradient pair rendered as gradient text on the
@@ -2100,6 +2152,34 @@
       sendRow.requestSubmit();
     }
   });
+
+  // ---------- mobile keyboard handling ----------
+  // 100dvh plus the viewport meta's interactive-widget=resizes-content
+  // already keep the composer pinned above an on-screen keyboard on
+  // modern mobile browsers without any JS. What's left: make sure the
+  // latest message doesn't end up hidden behind the keyboard when it
+  // opens, and that focusing the composer actually scrolls it into view.
+  messageInput.addEventListener("focus", () => {
+    setTimeout(() => {
+      messageInput.scrollIntoView({ block: "end", behavior: "smooth" });
+      if (isNearBottom()) log.scrollTop = log.scrollHeight;
+    }, 300); // let the keyboard's resize settle first
+  });
+
+  if (window.visualViewport) {
+    let lastViewportHeight = window.visualViewport.height;
+    window.visualViewport.addEventListener("resize", () => {
+      const vv = window.visualViewport;
+      const shrank = vv.height < lastViewportHeight;
+      lastViewportHeight = vv.height;
+      // Only snap to bottom if the conversation was already being
+      // followed — someone scrolled up to read history shouldn't get
+      // yanked down just because the keyboard opened.
+      if (shrank && isNearBottom()) {
+        requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
+      }
+    });
+  }
 
   // ---------- send button state ----------
   function updateSendButtonState() {

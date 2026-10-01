@@ -114,9 +114,19 @@ marked **[done]** are implemented; the rest are a menu to pick from.
 
 ## Mobile and accessibility
 
-- **Keyboard handling** — keep the input above the mobile keyboard and the
-  latest message in view.
-- **Swipe gestures** — swipe down to close the connection log.
+- **[done] Keyboard handling** — `100dvh` plus the viewport meta's new
+  `interactive-widget=resizes-content` keep the composer pinned above an
+  on-screen keyboard on modern mobile browsers without extra JS. On top of
+  that: focusing the composer scrolls it into view once the keyboard's
+  resize settles, and a `visualViewport` resize listener snaps the log to
+  the latest message when the keyboard opens — but only if you were
+  already following the conversation, so scrolling up to read history
+  doesn't get undone by the keyboard appearing.
+- **[done] Swipe gestures** — dragging down on a bottom sheet's handle
+  (connection log and online-users both use it) follows your finger live
+  and closes past an 80px threshold, snapping back below it. A visible
+  grip bar marks the drag target. Verified via simulated pointer drags:
+  both the follow-finger motion and the threshold-based close/snap-back.
 - **Screen-reader support** — announce new messages with `aria-live`, and
   check color contrast on the dimmer text.
 - **Reduced motion** — the aurora background already respects
