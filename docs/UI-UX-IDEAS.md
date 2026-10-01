@@ -154,10 +154,16 @@ marked **[done]** are implemented; the rest are a menu to pick from.
 
 ## Connection log
 
-- **Filter and copy** — filter by type (sent, received, errors) and add a
-  "Copy log" button.
-- **Clearer framing** — it currently reads like a debug console; could be
-  reframed as a friendlier "Activity" panel.
+- **[done] Filter and copy** — a segmented All/Sent/Received/Errors filter
+  (Errors includes close events too, since an unexpected close is usually
+  what you're hunting for alongside outright errors) plus a "Copy log"
+  button that copies the full log as timestamped lines, with the same
+  copied-confirmation pattern as "Copy invite link."
+- **[done] Clearer framing** — renamed to "Activity" (header button and
+  panel title) with a one-line description of what it shows, so it reads
+  like a feature instead of a debug console. The actual log entries stay
+  technical on purpose — they're what lets you see the handshake and
+  message traffic happen in real time.
 
 ## Suggested first pass — done
 
