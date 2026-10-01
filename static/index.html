@@ -131,6 +131,35 @@
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+  /* One consistent keyboard-focus ring everywhere (outline respects
+     border-radius in current browsers, so pills/circles look right too).
+     Mouse/touch activation never shows it — :focus-visible already
+     filters that out. Text inputs keep their own focus treatment below
+     instead of stacking a second ring on top. */
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type="text"]:focus-visible,
+  #message:focus-visible {
+    outline: none;
+  }
+
+  /* ---------- Ripple feedback on every interactive control ---------- */
+  .ripple-btn { position: relative; overflow: hidden; }
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.22;
+    transform: scale(0);
+    animation: rippleExpand .5s ease-out;
+    pointer-events: none;
+  }
+  @keyframes rippleExpand {
+    to { transform: scale(2.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ripple { display: none; }
+  }
+
   html, body {
     height: 100%;
     margin: 0;
@@ -562,16 +591,67 @@
     align-items: flex-start;
     gap: 0.5rem;
   }
-  #log::-webkit-scrollbar { width: 8px; }
-  #log::-webkit-scrollbar-thumb { background: var(--glass-border-strong); border-radius: 8px; }
-  #log::-webkit-scrollbar-track { background: transparent; }
+  /* Custom scrollbar — Firefox (scrollbar-width/color) and WebKit, applied
+     consistently to every independently-scrollable region. */
+  #log, .sheet-body, #message, .code-block {
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border-strong) transparent;
+  }
+  #log::-webkit-scrollbar, .sheet-body::-webkit-scrollbar, #message::-webkit-scrollbar, .code-block::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  #log::-webkit-scrollbar-thumb, .sheet-body::-webkit-scrollbar-thumb, #message::-webkit-scrollbar-thumb, .code-block::-webkit-scrollbar-thumb {
+    background: var(--glass-border-strong);
+    border-radius: 8px;
+  }
+  #log::-webkit-scrollbar-track, .sheet-body::-webkit-scrollbar-track, #message::-webkit-scrollbar-track, .code-block::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
+  /* ---------- Empty-state hint ---------- */
+  .empty-state {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--fg-subtle);
+    pointer-events: none;
+    max-width: 230px;
+    z-index: 1;
+  }
+  .empty-state[hidden] { display: none; }
+  .empty-state-emoji {
+    font-size: 2.1rem;
+    display: inline-block;
+    margin-bottom: 0.35rem;
+    transform-origin: 70% 70%;
+    animation: wave 2.4s ease-in-out infinite;
+  }
+  @keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    30% { transform: rotate(14deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+    60%, 100% { transform: rotate(0deg); }
+  }
+  .empty-state p { margin: 0; font-size: 0.84rem; line-height: 1.5; }
+  @media (prefers-reduced-motion: reduce) {
+    .empty-state-emoji { animation: none; }
+  }
+
+  /* display:none can't be transitioned, so the "show" toggle for anything
+     that should animate in AND out uses opacity/visibility/pointer-events
+     instead — visibility still drops it from hit-testing, the tab order
+     and the accessibility tree while hidden, same as display:none did. */
   .jump-latest-btn {
     position: absolute;
     bottom: 12px;
     left: 50%;
-    transform: translateX(-50%) translateY(8px);
-    display: none;
+    display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     background: rgba(10, 12, 28, 0.88);
@@ -586,10 +666,19 @@
     -webkit-backdrop-filter: blur(14px) saturate(150%);
     box-shadow: 0 8px 24px rgba(0,0,0,.4);
     opacity: 0;
-    transition: opacity .2s ease, transform .2s ease;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(8px);
+    transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
     z-index: 3;
   }
-  .jump-latest-btn.show { display: inline-flex; opacity: 1; transform: translateX(-50%) translateY(0); }
+  .jump-latest-btn.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+    transition: opacity .2s ease, transform .2s ease, visibility 0s linear 0s;
+  }
   .jump-latest-btn .count {
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     color: #06101a;
@@ -729,6 +818,15 @@
     -webkit-backdrop-filter: blur(16px) saturate(150%);
     box-shadow: 0 8px 24px rgba(0,0,0,.45);
     z-index: 5;
+    transform-origin: bottom center;
+    animation: popIn .12s ease-out;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reaction-picker { animation: none; }
   }
   .msg.them .reaction-picker { right: 0; }
   .msg.me .reaction-picker { left: 0; }
@@ -893,15 +991,21 @@
 
   /* ---------- Connection log panel ---------- */
   #panel-backdrop {
-    display: none;
     position: fixed;
     inset: 0;
     background: rgba(3,4,16,.65);
     backdrop-filter: blur(2px);
     z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, visibility 0s linear .2s;
+  }
+  #panel-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .2s ease, visibility 0s linear 0s;
   }
   .sheet {
-    display: none;
     position: fixed;
     left: 0; right: 0; bottom: 0;
     max-height: 82dvh;
@@ -911,11 +1015,22 @@
     border-top: 1px solid var(--glass-border-strong);
     border-radius: 18px 18px 0 0;
     z-index: 11;
+    display: flex;
     flex-direction: column;
     box-shadow: 0 -12px 40px rgba(0,0,0,.5);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(100%);
+    transition: transform .3s cubic-bezier(.32,.72,0,1), opacity .2s ease, visibility 0s linear .3s;
   }
-  .sheet.show, #panel-backdrop.show { display: flex; }
-  #panel-backdrop.show { display: block; }
+  .sheet.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition: transform .3s cubic-bezier(.32,.72,0,1), opacity .2s ease, visibility 0s linear 0s;
+  }
 
   .sheet-handle {
     flex: 0 0 auto;
@@ -1078,20 +1193,24 @@
 
   /* ---------- Leave confirmation ---------- */
   .confirm-backdrop {
-    display: none;
     position: fixed;
     inset: 0;
     background: rgba(3,4,16,.65);
     backdrop-filter: blur(2px);
     z-index: 20;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .15s ease, visibility 0s linear .15s;
   }
-  .confirm-backdrop.show { display: block; }
+  .confirm-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity .15s ease, visibility 0s linear 0s;
+  }
   #leave-confirm {
-    display: none;
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(.96);
     width: min(300px, calc(100vw - 2.5rem));
     background: linear-gradient(180deg, var(--glass-strong), var(--glass));
     border: 1px solid var(--glass-border);
@@ -1102,9 +1221,18 @@
     box-shadow: 0 24px 60px rgba(0,0,0,.5);
     z-index: 21;
     opacity: 0;
-    transition: opacity .15s ease, transform .15s ease;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(.96);
+    transition: opacity .15s ease, transform .15s ease, visibility 0s linear .15s;
   }
-  #leave-confirm.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #leave-confirm.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+    transition: opacity .15s ease, transform .15s ease, visibility 0s linear 0s;
+  }
   .confirm-text { margin: 0 0 1rem; font-size: 0.95rem; color: var(--fg); text-align: center; }
   .confirm-text strong {
     background: linear-gradient(90deg, var(--accent-text), var(--accent-2-text));
@@ -1226,6 +1354,10 @@
     <section id="chat-screen">
       <div class="log-wrap">
         <div id="log"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <span class="empty-state-emoji" aria-hidden="true">👋</span>
+          <p>No messages yet — say hi to get things started.</p>
+        </div>
         <button id="jump-latest" class="jump-latest-btn" type="button">
           <span aria-hidden="true">↓</span> New messages <span id="jump-latest-count" class="count"></span>
         </button>
@@ -1348,6 +1480,7 @@
   const recentRoomsEl = document.getElementById("recent-rooms");
 
   const logWrap = document.querySelector(".log-wrap");
+  const emptyStateEl = document.getElementById("empty-state");
   const jumpBtn = document.getElementById("jump-latest");
   const jumpCountEl = document.getElementById("jump-latest-count");
   const soundToggleBtn = document.getElementById("sound-toggle");
@@ -1699,6 +1832,17 @@
     hideJumpButton();
   });
 
+  // ---------- empty-state hint ----------
+  // Shown fresh on every join (this app keeps no history, so the log is
+  // always empty at that point); hidden the moment a real chat message
+  // (not a system/roster/typing notice) appears.
+  function showEmptyState() {
+    emptyStateEl.hidden = false;
+  }
+  function hideEmptyState() {
+    emptyStateEl.hidden = true;
+  }
+
   // ---------- unread tab badge + sound ----------
   let soundEnabled = true;
   try { soundEnabled = localStorage.getItem("chat-sound") !== "off"; } catch (_) {}
@@ -1753,6 +1897,7 @@
   window.addEventListener("focus", clearUnreadBadge);
 
   function appendMessage(kind, who, text, colorKey, isoTimestamp, messageId) {
+    if (kind === "them" || kind === "me") hideEmptyState();
     const wasNearBottom = isNearBottom();
     const wrap = document.createElement("div");
     const groupKey = kind === "them" || kind === "me" ? (colorKey || who) : null;
@@ -2148,6 +2293,7 @@
       hideReconnectBanner();
       saveSession(room, username);
       saveRecentRoom(room);
+      showEmptyState();
       joinScreen.style.display = "none";
       chatScreen.style.display = "flex";
       leaveBtn.classList.add("show");
@@ -2201,6 +2347,7 @@
         closeAllReactionPickers();
         messageElements.clear();
         hideJumpButton();
+        hideEmptyState();
         clearUnreadBadge();
         typingUsers.forEach((id) => clearTimeout(id));
         typingUsers.clear();
@@ -2304,6 +2451,29 @@
     autoGrowMessageInput();
     updateSendButtonState();
     lastTypingSentAt = 0;
+  });
+
+  // ---------- ripple feedback ----------
+  // Delegated on document so it covers controls created after page load
+  // (reaction pills, room chips) without wiring each one individually.
+  const RIPPLE_SELECTOR =
+    "button.primary, #send-row button, .icon-btn, .leave-btn, .confirm-btn, .room-chip, " +
+    ".text-btn, .seg-btn, .swatch, .reaction-pill, .invite-link-btn, .react-trigger, " +
+    ".jump-latest-btn, .reconnect-retry-btn";
+
+  document.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest(RIPPLE_SELECTOR);
+    if (!el || el.disabled) return;
+    el.classList.add("ripple-btn");
+    const rect = el.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const span = document.createElement("span");
+    span.className = "ripple";
+    span.style.width = span.style.height = size + "px";
+    span.style.left = e.clientX - rect.left - size / 2 + "px";
+    span.style.top = e.clientY - rect.top - size / 2 + "px";
+    el.appendChild(span);
+    span.addEventListener("animationend", () => span.remove());
   });
 
   // Rejoin automatically after a refresh; otherwise just prefill the form.

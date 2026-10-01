@@ -93,12 +93,24 @@ marked **[done]** are implemented; the rest are a menu to pick from.
   background, and the header logo everywhere via CSS custom properties
   (including RGB-triple tokens for translucent tints/glows) — one
   consistent brand hue across the whole app, independent of light/dark.
-- **Empty states** — a friendly illustration or hint in a fresh room
-  ("Say hi 👋").
-- **Micro-interactions** — message send animation, button ripple, smoother
-  panel open/close.
-- **Custom scrollbar and focus rings** — consistent styling across every
-  element.
+- **[done] Empty states** — a waving-hand hint ("No messages yet — say hi to
+  get things started") centered over the log, shown fresh on every join
+  (this app keeps no history) and hidden the instant a real chat message
+  — from anyone — arrives.
+- **[done] Micro-interactions** — a delegated ripple effect on every
+  button/chip/pill/swatch (covers ones created later, like reaction pills
+  and room chips, with no per-element wiring needed); a quick pop-in on
+  the reaction picker; and a real fix for the connection-log/online/leave-
+  confirm panels, which looked like they animated but actually popped
+  instantly — `display: none` can't be transitioned, so they now toggle
+  via opacity/visibility/pointer-events instead, verified mid-transition.
+- **[done] Custom scrollbar and focus rings** — the themed scrollbar
+  (previously only on the message log) now also applies to the settings
+  panels, the composer, and code blocks, with `scrollbar-width`/-`color`
+  added for Firefox alongside the existing WebKit rules. A single global
+  `:focus-visible` ring in the accent color now covers every interactive
+  element — keyboard-only (never shows on a mouse click), verified both
+  ways.
 
 ## Mobile and accessibility
 
